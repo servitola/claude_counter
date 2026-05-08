@@ -9,33 +9,45 @@ runtime dependencies beyond system frameworks.
 
 ```
 claude_counter/
-├── Makefile                    # all developer commands
+├── Makefile                    # all developer commands (build/install/lint/test/ci)
+├── .swiftlint.yml              # SwiftLint config — strict, opt-in heavy
+├── .swiftformat                # SwiftFormat config — formatting source of truth
+├── .periphery.yml              # Periphery config — dead code detection
+├── .pre-commit-config.yaml     # pre-commit hook (gitleaks + Swift toolchain)
+├── .github/workflows/ci.yml    # GitHub Actions: build · test · lint · format · dead-code
 ├── scripts/
 │   ├── build-app.sh            # bundle assembly + codesign + install
 │   └── setup-codesign-cert.sh  # one-time stable cert in login keychain
 └── App/
-    ├── Package.swift           # swift-tools 6.0, single executable target
-    └── Sources/ClaudeCounter/
-        ├── ClaudeCounterApp.swift   # @main, AppDelegate, accessory mode
-        ├── AppState.swift           # @Observable, holds ClaudeUsage
-        ├── Models/ClaudeUsage.swift
-        ├── Scraper/
-        │   ├── QuotaScraper.swift          # 60s timer + entry point
-        │   ├── QuotaScraper+Lifecycle.swift # tearDown, watchdog, retry
-        │   ├── QuotaScraper+Navigation.swift
-        │   ├── QuotaScraper+Extract.swift   # JS eval + debug dump
-        │   ├── QuotaScraper+Parse.swift
-        │   ├── QuotaScraper+JS.swift        # the extraction script
-        │   ├── ContentBlocker.swift         # WKContentRuleList
-        │   └── WebViewFactory.swift
-        ├── StatusBar/
-        │   ├── StatusBarController.swift
-        │   ├── StatusBarController+Menu.swift
-        │   └── QuotaTitleFormatter.swift
-        ├── UI/
-        │   ├── UsageWindow.swift            # NSWindow with WebView
-        │   └── WebViewCoordinator.swift     # OAuth popup handling
-        └── LoginItem/LoginItemManager.swift # SMAppService wrapper
+    ├── Package.swift           # swift-tools 6.2, strict concurrency, warnings-as-errors
+    ├── Sources/ClaudeCounter/
+    │   ├── ClaudeCounterApp.swift     # @main, AppDelegate, accessory mode
+    │   ├── AppState.swift             # @Observable, holds ClaudeUsage
+    │   ├── Logging/AppLog.swift       # os.Logger facade (no NSLog allowed)
+    │   ├── Models/ClaudeUsage.swift
+    │   ├── Scraper/
+    │   │   ├── QuotaScraper.swift          # 60s timer + entry point
+    │   │   ├── QuotaScraper+Lifecycle.swift # tearDown, watchdog, retry
+    │   │   ├── QuotaScraper+Navigation.swift
+    │   │   ├── QuotaScraper+Extract.swift   # JS eval + debug dump
+    │   │   ├── QuotaScraper+JS.swift        # the extraction script
+    │   │   ├── QuotaPayload.swift           # typed view over JS result
+    │   │   ├── QuotaParser.swift            # pure: QuotaPayload → ClaudeUsage
+    │   │   ├── ContentBlocker.swift         # WKContentRuleList
+    │   │   └── WebViewFactory.swift
+    │   ├── StatusBar/
+    │   │   ├── StatusBarController.swift
+    │   │   ├── StatusBarController+Menu.swift
+    │   │   └── QuotaTitleFormatter.swift
+    │   ├── UI/
+    │   │   ├── UsageWindow.swift            # NSWindow with WebView
+    │   │   └── WebViewCoordinator.swift     # OAuth popup handling
+    │   └── LoginItem/LoginItemManager.swift # SMAppService wrapper
+    └── Tests/ClaudeCounterTests/
+        ├── ClaudeUsageTests.swift
+        ├── QuotaPayloadTests.swift
+        ├── QuotaParserTests.swift
+        └── QuotaTitleFormatterTests.swift
 ```
 
 ## Data flow
@@ -91,6 +103,28 @@ make uninstall     # remove app (cookies stay)
 make purge         # uninstall + delete cookies and preferences
 make verify-sign   # show installed signature identity
 ```
+
+## Quality gates
+
+```bash
+make test           # swift test (24 unit tests, no WebKit)
+make lint           # SwiftLint --strict (treats warnings as errors)
+make lint-fix       # auto-fix what SwiftLint can
+make format         # SwiftFormat — rewrite sources in place
+make format-check   # CI-safe: error if anything would change
+make dead-code      # Periphery scan in --strict mode
+make ci             # everything above, in failure-fast order
+make hooks-install  # install pre-commit hook (lint + format + build + test + gitleaks)
+```
+
+CI in `.github/workflows/ci.yml` runs the same `make ci` on `macos-15`.
+
+Compiler is also strict:
+- `swift-tools 6.2`
+- `treatAllWarnings(as: .error)`
+- `enableExperimentalFeature("StrictConcurrency")`
+- Upcoming features: `ExistentialAny`, `InternalImportsByDefault`,
+  `InferIsolatedConformances`, `NonisolatedNonsendingByDefault`
 
 `scripts/build-app.sh` writes `Info.plist` inline (LSUIElement=true,
 macOS 15 minimum). It picks the stable cert if present, falls back to
