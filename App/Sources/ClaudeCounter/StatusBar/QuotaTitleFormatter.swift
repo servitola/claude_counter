@@ -2,26 +2,37 @@ import AppKit
 
 /// Renders ClaudeUsage as a colored attributed string for the menu bar.
 /// Layout examples:
-///   "  12% 2h 15m   76%"
-///   "  82% 45m   91%"     (82% colored orange)
-///   "  –% –m   –%"        (no data yet)
+///   "  12% 2h 15m   76%"     (default color)
+///   "  82% 45m   91%"        (82% orange — heads up)
+///   "  93% 12m   78%"        (93% red — actually pay attention)
+///   "  –% –m   –%"           (no data yet)
 enum QuotaTitleFormatter {
+    /// Orange ≥ this %, red ≥ the next.
+    static let warnThreshold = 80
+    static let alertThreshold = 90
+
     static func render(_ usage: ClaudeUsage, now: Date = Date()) -> NSAttributedString {
         let gap = "  "
         let session = sessionPart(usage, now: now)
         let weekly = weeklyPart(usage)
         let str = NSMutableAttributedString(string: gap + session)
-        if let pct = usage.currentPercent, pct > 80 {
+        if let pct = usage.currentPercent, let color = colorFor(pct) {
             let range = NSRange(
                 location: gap.count,
                 length: "\(pct)%".count
             )
-            str.addAttribute(
-                .foregroundColor, value: NSColor.systemOrange, range: range
-            )
+            str.addAttribute(.foregroundColor, value: color, range: range)
         }
         str.append(NSAttributedString(string: gap + weekly))
         return str
+    }
+
+    private static func colorFor(_ pct: Int) -> NSColor? {
+        switch pct {
+        case alertThreshold...: return .systemRed
+        case warnThreshold...:  return .systemOrange
+        default:                return nil
+        }
     }
 
     private static func sessionPart(_ u: ClaudeUsage, now: Date) -> String {
