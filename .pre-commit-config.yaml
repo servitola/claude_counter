@@ -6,7 +6,7 @@ fail_fast: false
 repos:
   ## Generic hygiene.
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -16,6 +16,8 @@ repos:
         args: [--maxkb=512]
 
   ## Secrets — same scanner used in dotfiles.
+  ## Pin to v8.21.2: newer revs require fetching Go modules from
+  ## proxy.golang.org during install, which fails in sandboxed envs.
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.21.2
     hooks:
