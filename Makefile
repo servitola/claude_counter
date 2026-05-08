@@ -1,4 +1,7 @@
-.PHONY: build release install update reinstall uninstall run kill clean check setup-cert verify-sign
+.PHONY: build release install update reinstall uninstall purge run kill clean check setup-cert verify-sign \
+        test lint lint-fix format format-check dead-code analyze ci hooks-install
+
+# ----- Build & deploy ---------------------------------------------------------
 
 # Local dev build (debug, no install).
 build:
@@ -56,4 +59,48 @@ clean:
 	cd App && swift package clean
 	rm -rf App/.build/ClaudeCounter.app
 
-check: build
+# ----- Quality gates ----------------------------------------------------------
+
+# Tests run from the package root.
+test:
+	cd App && swift test
+
+# SwiftLint with --strict so warnings fail the build.
+lint:
+	swiftlint lint --strict --config .swiftlint.yml
+
+# Auto-fix what SwiftLint can. The rest must be fixed by hand.
+lint-fix:
+	swiftlint lint --fix --config .swiftlint.yml
+
+# SwiftFormat — rewrite files in place.
+format:
+	swiftformat App/Sources App/Tests --config .swiftformat
+
+# CI-safe: error if anything would be reformatted.
+format-check:
+	swiftformat App/Sources App/Tests --config .swiftformat --lint
+
+# Static dead-code analysis. --strict turns warnings into a non-zero exit.
+# Periphery resolves the config path against `--project-root`, so we
+# pass an absolute path to keep .periphery.yml at the repo root.
+dead-code:
+	periphery scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict
+
+# Heavy analyzer rules (capture_variable, unused_declaration, etc.).
+# Requires a finished build, hence the dependency.
+analyze: build
+	swiftlint analyze --strict --config .swiftlint.yml \
+		--compiler-log-path App/.build/debug.yaml || true
+
+# Everything CI runs. Order is the cheapest-first so failures surface fast.
+check: format-check lint test dead-code
+
+ci: check
+
+# ----- Pre-commit hook --------------------------------------------------------
+
+# Installs `pre-commit` git hook (defined in .pre-commit-config.yaml).
+hooks-install:
+	pre-commit install --install-hooks
+	@echo "Pre-commit hook installed. Run 'pre-commit run --all-files' to test."

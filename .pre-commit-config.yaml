@@ -1,0 +1,51 @@
+## pre-commit hooks for Claude Counter.
+## Install: `make hooks-install`. Run on demand: `pre-commit run --all-files`.
+
+fail_fast: false
+
+repos:
+  ## Generic hygiene.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+
+  ## Secrets — same scanner used in dotfiles.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  ## Swift toolchain — invoked via system tools so they pick up local
+  ## brew installs and the workspace config files.
+  - repo: local
+    hooks:
+      - id: swiftformat
+        name: SwiftFormat (lint)
+        entry: swiftformat App/Sources App/Tests --config .swiftformat --lint
+        language: system
+        pass_filenames: false
+        files: \.swift$
+      - id: swiftlint
+        name: SwiftLint (strict)
+        entry: swiftlint lint --strict --config .swiftlint.yml
+        language: system
+        pass_filenames: false
+        files: \.swift$
+      - id: swift-build
+        name: swift build
+        entry: bash -c 'cd App && swift build'
+        language: system
+        pass_filenames: false
+        files: \.swift$
+      - id: swift-test
+        name: swift test
+        entry: bash -c 'cd App && swift test --quiet'
+        language: system
+        pass_filenames: false
+        files: \.swift$
