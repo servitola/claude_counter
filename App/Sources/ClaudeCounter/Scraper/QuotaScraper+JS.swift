@@ -6,33 +6,19 @@ import Foundation
 // swiftlint:disable line_length
 
 extension QuotaScraper {
-    /// JS that reads claude.ai/settings/usage. Returns:
-    ///   percentages: all "X% used" text matches (current first, weekly next)
-    ///   barPercents: progress-bar fallbacks
-    ///   resetMinutes: minutes until 5h reset
-    ///   raw: aggregated text used for matching (for debugging)
+    /// Pure JS parser: takes a pre-aggregated `allText` plus a list of
+    /// progressbar percentages and produces the same shape of object the
+    /// scraper feeds into `QuotaPayload`.
     ///
-    /// claude.ai is a heavy SPA that doesn't populate `body.innerText`,
-    /// so we walk the tree explicitly: every aria-label + every direct
-    /// text node. This gives us the visible labels including
-    /// "Resets in Xh Ym" which is what we actually care about.
-    static let extractionJS = """
-    (function() {
-        var texts = [];
-        document.querySelectorAll('*').forEach(function(el) {
-            var l = el.getAttribute && el.getAttribute('aria-label');
-            if (l) { texts.push(l); }
-            if (el.childNodes) {
-                for (var i = 0; i < el.childNodes.length; i++) {
-                    var n = el.childNodes[i];
-                    if (n.nodeType === 3) {
-                        var t = (n.textContent || '').trim();
-                        if (t) { texts.push(t); }
-                    }
-                }
-            }
-        });
-        var allText = texts.join(' | ').replace(/[\\s\\u00a0]+/g, ' ');
+    /// Pulled out as a standalone function so unit tests can run it via
+    /// JavaScriptCore against fixture inputs — no WebKit, no DOM.
+    /// Production calls it from `extractionJS` with values gathered from
+    /// the live DOM.
+    ///
+    /// `nowMs` is injected so the absolute-time branch ("Resets at 9:30 PM")
+    /// is deterministic in tests.
+    nonisolated static let parserLibraryJS = """
+    function parseQuotaFromText(allText, barPcts, nowMs) {
         var result = { found: false, raw: allText.substring(0, 4000) };
 
         var allMatches = [...allText.matchAll(/(\\d+\\.?\\d*)\\s*%\\s*used/gi)];
@@ -71,7 +57,7 @@ extension QuotaScraper {
             break;
         }
 
-        // Absolute reset time: "Resets at 9:30 PM" — convert to minutes-from-now.
+        // Absolute reset time: "Resets at 9:30 PM" → minutes-from-now.
         if (result.resetMinutes == null) {
             var atMatch = allText.match(
                 /[Rr]eset[s]?\\s+at\\s+(\\d{1,2})[:\\.](\\d{2})\\s*(AM|PM|am|pm)?/
@@ -82,7 +68,7 @@ extension QuotaScraper {
                 var ampm = (atMatch[3] || '').toUpperCase();
                 if (ampm === 'PM' && hh < 12) { hh += 12; }
                 if (ampm === 'AM' && hh === 12) { hh = 0; }
-                var now = new Date();
+                var now = new Date(nowMs);
                 var target = new Date(
                     now.getFullYear(), now.getMonth(), now.getDate(), hh, mm
                 );
@@ -96,7 +82,42 @@ extension QuotaScraper {
             }
         }
 
-        // Progress bar fallback — collected ALWAYS (sites change DOM).
+        if (barPcts && barPcts.length > 0) {
+            result.barPercents = barPcts;
+            result.found = true;
+        }
+
+        return result;
+    }
+    """
+
+    /// JS that reads claude.ai/settings/usage. Returns the same dict
+    /// shape `parseQuotaFromText` produces; QuotaPayload(jsResult:)
+    /// converts it to a typed value.
+    ///
+    /// claude.ai is a heavy SPA that doesn't populate `body.innerText`,
+    /// so we walk the tree explicitly: every aria-label + every direct
+    /// text node. This gives us the visible labels including
+    /// "Resets in Xh Ym" which is what we actually care about.
+    nonisolated static let extractionJS = parserLibraryJS + """
+
+    (function() {
+        var texts = [];
+        document.querySelectorAll('*').forEach(function(el) {
+            var l = el.getAttribute && el.getAttribute('aria-label');
+            if (l) { texts.push(l); }
+            if (el.childNodes) {
+                for (var i = 0; i < el.childNodes.length; i++) {
+                    var n = el.childNodes[i];
+                    if (n.nodeType === 3) {
+                        var t = (n.textContent || '').trim();
+                        if (t) { texts.push(t); }
+                    }
+                }
+            }
+        });
+        var allText = texts.join(' | ').replace(/[\\s\\u00a0]+/g, ' ');
+
         var barPcts = [];
         document.querySelectorAll('[role="progressbar"]').forEach(function(b) {
             var v = b.getAttribute('aria-valuenow');
@@ -104,9 +125,8 @@ extension QuotaScraper {
             var w = b.style.width;
             if (w && w.endsWith('%')) { barPcts.push(parseFloat(w)); }
         });
-        if (barPcts.length > 0) { result.barPercents = barPcts; result.found = true; }
 
-        return result;
+        return parseQuotaFromText(allText, barPcts, Date.now());
     })()
     """
 }
