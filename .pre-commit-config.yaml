@@ -14,6 +14,9 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=512]
+        # App icon is intentionally checked in (~1.2 MB for the full
+        # 16→1024 .icns set) and shouldn't trip the size limit.
+        exclude: \.icns$
 
   ## Secrets — same scanner used in dotfiles.
   ## Pin to v8.21.2: newer revs require fetching Go modules from

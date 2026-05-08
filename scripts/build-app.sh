@@ -36,7 +36,19 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_DIR/MacOS" "$APP_DIR/Resources"
 cp "$BUILD_DIR/release/ClaudeCounter" "$APP_DIR/MacOS/ClaudeCounter"
 
-cat > "$APP_DIR/Info.plist" << 'PLIST'
+# Bundle icon. Sources lives at App/Resources/AppIcon.icns.
+ICON_SRC="$PROJECT_DIR/Resources/AppIcon.icns"
+if [[ -f "$ICON_SRC" ]]; then
+    cp "$ICON_SRC" "$APP_DIR/Resources/AppIcon.icns"
+    ICON_PLIST_KEY='    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+'
+else
+    echo "WARN: $ICON_SRC missing — bundle will use the default icon."
+    ICON_PLIST_KEY=''
+fi
+
+cat > "$APP_DIR/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -56,7 +68,7 @@ cat > "$APP_DIR/Info.plist" << 'PLIST'
     <string>ClaudeCounter</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
-    <key>LSMinimumSystemVersion</key>
+${ICON_PLIST_KEY}    <key>LSMinimumSystemVersion</key>
     <string>15.0</string>
     <key>LSUIElement</key>
     <true/>
