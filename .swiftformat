@@ -1,0 +1,121 @@
+# SwiftFormat — formatting source of truth.
+# Run via `make format`; CI uses `make format-check`.
+
+--swiftversion 6.0
+--exclude App/.build,App/.swiftpm
+
+# Indentation / wrapping
+--indent 4
+--maxwidth 100
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--wrapconditions before-first
+--wrapreturntype if-multiline
+--wrapternary before-operators
+--closingparen balanced
+
+# Self / access
+--self init-only
+--selfrequired
+--patternlet inline
+--stripunusedargs closure-only
+
+# Spacing / punctuation
+--commas inline
+--ifdef no-indent
+--operatorfunc spaced
+--ranges spaced
+--semicolons never
+--trimwhitespace always
+--emptybraces no-space
+--linebreaks lf
+
+# Imports
+--importgrouping testable-bottom
+
+# Headers — leave existing files alone.
+--header ignore
+
+# Enable a tight, opinionated set; SwiftLint rules that overlap are OFF in .swiftlint.yml.
+--enable                                            \
+    andOperator,                                     \
+    anyObjectProtocol,                               \
+    blankLinesAroundMark,                            \
+    blankLinesAtEndOfScope,                          \
+    blankLinesAtStartOfScope,                        \
+    blankLinesBetweenScopes,                         \
+    consecutiveBlankLines,                           \
+    consecutiveSpaces,                               \
+    duplicateImports,                                \
+    elseOnSameLine,                                  \
+    emptyBraces,                                     \
+    enumNamespaces,                                  \
+    extensionAccessControl,                          \
+    fileHeader,                                      \
+    genericExtensions,                               \
+    hoistAwait,                                      \
+    hoistTry,                                        \
+    indent,                                          \
+    initCoderUnavailable,                            \
+    isEmpty,                                         \
+    leadingDelimiters,                               \
+    linebreakAtEndOfFile,                            \
+    markTypes,                                       \
+    modifierOrder,                                   \
+    numberFormatting,                                \
+    opaqueGenericParameters,                         \
+    preferKeyPath,                                   \
+    redundantBackticks,                              \
+    redundantBreak,                                  \
+    redundantClosure,                                \
+    redundantExtensionACL,                           \
+    redundantFileprivate,                            \
+    redundantGet,                                    \
+    redundantInit,                                   \
+    redundantInternal,                               \
+    redundantLet,                                    \
+    redundantLetError,                               \
+    redundantNilInit,                                \
+    redundantObjc,                                   \
+    redundantOptionalBinding,                        \
+    redundantParens,                                 \
+    redundantPattern,                                \
+    redundantRawValues,                              \
+    redundantReturn,                                 \
+    redundantSelf,                                   \
+    redundantType,                                   \
+    redundantVoidReturnType,                         \
+    semicolons,                                      \
+    sortDeclarations,                                \
+    sortImports,                                     \
+    sortTypealiases,                                 \
+    spaceAroundBraces,                               \
+    spaceAroundBrackets,                             \
+    spaceAroundComments,                             \
+    spaceAroundGenerics,                             \
+    spaceAroundOperators,                            \
+    spaceAroundParens,                               \
+    spaceInsideBraces,                               \
+    spaceInsideBrackets,                             \
+    spaceInsideComments,                             \
+    spaceInsideGenerics,                             \
+    spaceInsideParens,                               \
+    strongOutlets,                                   \
+    strongifiedSelf,                                 \
+    todos,                                           \
+    trailingCommas,                                  \
+    trailingSpace,                                   \
+    typeSugar,                                       \
+    void,                                            \
+    wrap,                                            \
+    wrapArguments,                                   \
+    wrapAttributes,                                  \
+    wrapMultilineStatementBraces,                    \
+    yodaConditions
+
+--disable                                            \
+    blockComments,                                   \
+    organizeDeclarations,                            \
+    wrapEnumCases,                                   \
+    wrapMultilineConditionalAssignment
