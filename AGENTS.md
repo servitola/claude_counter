@@ -98,6 +98,7 @@ make build         # debug, no install — fast inner loop
 make setup-cert    # one-time per machine, creates self-signed cert
 make install       # build + replace /Applications + relaunch if running
 make update        # build + replace + always launch
+make ship          # update + git clean -dfx (frees ~212 MB build cache)
 make reinstall     # nuke /Applications/<app> then install
 make uninstall     # remove app (cookies stay)
 make purge         # uninstall + delete cookies and preferences

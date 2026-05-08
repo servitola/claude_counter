@@ -1,4 +1,4 @@
-.PHONY: build release install update reinstall uninstall purge run kill clean check setup-cert verify-sign \
+.PHONY: build release install update ship reinstall uninstall purge run kill clean check setup-cert verify-sign \
         test lint lint-fix format format-check dead-code analyze ci hooks-install
 
 # ----- Build & deploy ---------------------------------------------------------
@@ -24,6 +24,13 @@ install:
 # Build + install + ALWAYS relaunch. Use this for "deploy a new version".
 update:
 	./scripts/build-app.sh --update
+
+# Build, install, relaunch, then nuke every untracked / build artifact in
+# the working tree. The .app in /Applications keeps running on its own —
+# the repo only needs sources and configs to rebuild later.
+# Frees ~212 MB (the SwiftPM .build directory).
+ship: update
+	git clean -dfx
 
 # Force a clean reinstall: nuke the existing bundle then install.
 reinstall:
