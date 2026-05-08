@@ -6,6 +6,7 @@ import WebKit
 
 /// Navigation + UI delegate for the visible usage WebView.
 /// Handles Google OAuth popups (claude.ai login flow) and crash recovery.
+@MainActor
 final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
     var targetURL: URL?
     private var authWebView: WKWebView?
