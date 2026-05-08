@@ -106,9 +106,25 @@ it up on the next tick automatically.
 | State                          | Total RSS |
 |--------------------------------|-----------|
 | Idle (between scrapes, ~58s/min) | ~76 MB    |
-| Peak (during scrape, ~2-3s/min)  | ~150 MB   |
+| Peak (during scrape, ~1s/min)    | ~150 MB   |
 
 Original design (persistent WebView) used ~863 MB continuously.
+
+### Content Blocking
+
+`ContentBlocker` (compiled at startup) attaches a `WKContentRuleList`
+to every scraper WebView. Blocked: `image`, `font`, `media`, `popup`,
+`ping` resources, plus known analytics/RUM domains
+(google-analytics, googletagmanager, doubleclick, segment, mixpanel,
+intercom, hotjar, fullstory, heap, amplitude, logrocket, datadog,
+sentry, newrelic).
+
+Allowed: `document`, `script`, `style-sheet`, `raw`, `fetch`, `xhr`,
+`websocket`. The page is a React SPA — JS is mandatory, the DOM tree
+we read only exists after it executes.
+
+The visible Usage window opts OUT of blocking (`blockHeavy: false`)
+so login flows, brand assets, and CAPTCHAs render normally.
 
 ## Code Rules
 

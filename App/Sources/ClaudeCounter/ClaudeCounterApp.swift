@@ -20,6 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Compile content blocker before any WebView is built. Async,
+        // takes ~50-200ms — first scrape may run before it's ready,
+        // every subsequent one is blocked.
+        ContentBlocker.shared.prewarm()
         statusBar = StatusBarController(
             appState: appState, scraper: scraper
         )

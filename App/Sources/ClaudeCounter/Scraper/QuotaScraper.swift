@@ -34,7 +34,7 @@ final class QuotaScraper: NSObject {
 
     func scrape() {
         guard webView == nil else { return }
-        let wv = WebViewFactory.make()
+        let wv = WebViewFactory.make(blockHeavy: true)
         wv.navigationDelegate = self
         wv.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
         webView = wv
