@@ -74,18 +74,41 @@ Items as "Claude Counter".
 
 ## How Scraping Works
 
-1. `QuotaScraper.start()` schedules a 60s timer.
-2. On each tick, a hidden 1×1 WKWebView loads `claude.ai/settings/usage`.
-3. After page finishes loading, wait 3s for the SPA to render.
-4. Run `QuotaScraper.extractionJS` — collects all `\d+% used` text matches
-   and `[role=progressbar]` aria-valuenow values.
+The scraper uses an **ephemeral WKWebView** — created at the start of
+each scrape, torn down when extraction completes. Keeping the webview
+alive between scrapes would pin a WebContent process holding the
+entire claude.ai SPA in memory (~700 MB on idle machines).
+
+1. `QuotaScraper.start()` schedules a 60s `Timer`.
+2. Each tick: build a fresh hidden 1×1 WKWebView, load
+   `claude.ai/settings/usage`, attach a 30s watchdog.
+3. After `didFinish` (page loaded, not redirected to `/login`), wait 3s
+   for the React tree to render.
+4. Run `QuotaScraper.extractionJS` — walks all `aria-label` attributes
+   and direct text nodes (claude.ai is shadow-DOM-heavy; `body.innerText`
+   is empty). Collects `\d+% used` text matches and
+   `[role=progressbar]` aria-valuenow fallbacks.
 5. Index 0 → current 5h %, index 1 → weekly %. Reset minutes parsed
    from "Resets in Xh Ym" text.
-6. Update `AppState.usage`. The status bar title re-renders via
-   `withObservationTracking`.
+6. Update `AppState.usage`. Call `tearDown()` — webview, navigation
+   delegate, and watchdog dropped. The WebContent / Networking / GPU
+   XPC services have no remaining references and exit on their own
+   within ~5-10 seconds.
+7. Status bar title re-renders via `withObservationTracking`.
 
-If `claude.ai/login` is detected, the scraper skips silently — the user
-must log in via the visible window first.
+If `claude.ai/login` is detected, the scrape is aborted — the user
+must log in via the visible window first. Login state lives in the
+shared `WKWebsiteDataStore.default()` cookies, so the scraper picks
+it up on the next tick automatically.
+
+### Memory Profile (M-series Mac, macOS 15)
+
+| State                          | Total RSS |
+|--------------------------------|-----------|
+| Idle (between scrapes, ~58s/min) | ~76 MB    |
+| Peak (during scrape, ~2-3s/min)  | ~150 MB   |
+
+Original design (persistent WebView) used ~863 MB continuously.
 
 ## Code Rules
 
