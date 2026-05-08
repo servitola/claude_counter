@@ -47,6 +47,10 @@ struct JSQuotaParserTests {
         ("3 hours and 12 minutes left", 192),
         ("47 minutes remaining", 47),
         ("4 hours left", 240),
+        // Variants observed live on claude.ai 2026-05.
+        ("Resets in 4 hr 17 min", 257),
+        ("Resets in 1 hr", 60),
+        ("Resets in 30 min", 30),
     ])
     func parsesRelativeResets(text: String, expectedMinutes: Int) {
         let payload = JSQuotaParserHarness.parse(text: "5% used | \(text)", now: now)
