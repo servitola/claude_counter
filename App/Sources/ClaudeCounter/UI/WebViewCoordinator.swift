@@ -1,5 +1,9 @@
 import WebKit
 
+// `WKNavigation!` parameter types come straight from the WebKit SDK.
+// We can't change those signatures so we accept the IUOs in this file.
+// swiftlint:disable implicitly_unwrapped_optional
+
 /// Navigation + UI delegate for the visible usage WebView.
 /// Handles Google OAuth popups (claude.ai login flow) and crash recovery.
 final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
@@ -16,7 +20,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         didFinish navigation: WKNavigation!
     ) {
         let url = webView.url?.absoluteString ?? ""
-        if url.contains("claude.ai") && authWebView != nil {
+        if url.contains("claude.ai"), authWebView != nil {
             authWebView?.removeFromSuperview()
             authWebView = nil
         }
@@ -33,7 +37,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         createWebViewWith config: WKWebViewConfiguration,
         for action: WKNavigationAction,
         windowFeatures: WKWindowFeatures
-    ) -> WKWebView? {
+    )
+        -> WKWebView?
+    {
         let host = action.request.url?.host ?? ""
         if host.contains("google") || host.contains("accounts") {
             let child = WKWebView(frame: webView.bounds, configuration: config)
@@ -44,8 +50,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
             authWebView = child
             return child
         }
-        if action.targetFrame == nil, let u = action.request.url {
-            webView.load(URLRequest(url: u))
+        if action.targetFrame == nil, let url = action.request.url {
+            webView.load(URLRequest(url: url))
         }
         return nil
     }
@@ -57,3 +63,5 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 }
+
+// swiftlint:enable implicitly_unwrapped_optional

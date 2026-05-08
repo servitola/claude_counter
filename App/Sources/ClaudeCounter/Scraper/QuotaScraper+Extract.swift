@@ -3,26 +3,27 @@ import WebKit
 
 extension QuotaScraper {
     func extract() {
-        guard let wv = currentWebView() else { return }
-        wv.evaluateJavaScript(Self.extractionJS) { [weak self] result, error in
+        guard let webView = currentWebView() else { return }
+        webView.evaluateJavaScript(Self.extractionJS) { [weak self] result, error in
             Task { @MainActor in
                 self?.handle(result: result, error: error)
             }
         }
     }
 
-    private func handle(result: Any?, error: Error?) {
+    private func handle(result: Any?, error: (any Error)?) {
         if let error {
-            NSLog("[Scraper] JS error: \(error.localizedDescription)")
+            AppLog.scraper.error("JS error: \(error.localizedDescription, privacy: .public)")
             handleFailure()
             return
         }
-        guard let dict = result as? [String: Any] else {
+        guard let payload = QuotaPayload(jsResult: result) else {
+            AppLog.scraper.error("JS returned non-dictionary")
             handleFailure()
             return
         }
-        dumpDebug(dict)
-        if let parsed = parse(dict) {
+        dumpDebug(payload)
+        if let parsed = QuotaParser.parse(payload) {
             appStateRef()?.usage = parsed
         }
         // Always tear down — even on parse failure the next 60s tick
@@ -31,26 +32,24 @@ extension QuotaScraper {
     }
 
     /// Always-on dump of the latest scrape to `/tmp/claude_counter_debug.txt`.
-    /// NSLog from a non-Apple-signed bundle is filtered out of unified
-    /// logging, so the file is the only visibility we have at runtime.
-    private func dumpDebug(_ dict: [String: Any]) {
-        let pcts = dict["percentages"] as? [Double] ?? []
-        let bars = dict["barPercents"] as? [Double] ?? []
-        let reset = dict["resetMinutes"].map { "\($0)" } ?? "nil"
-        let pattern = dict["matchedPattern"].map { "\($0)" } ?? "nil"
-        let matchText = dict["matchedText"] as? String ?? "(no match)"
-        let raw = (dict["raw"] as? String ?? "(empty)").prefix(2000)
+    /// Unified logging filters non-Apple-signed bundles aggressively;
+    /// this file is the only runtime visibility we get on user machines.
+    private func dumpDebug(_ payload: QuotaPayload) {
+        let raw = payload.raw.prefix(2000)
+        let pattern = payload.matchedPattern ?? "nil"
+        let matchText = payload.matchedText ?? "(no match)"
+        let resetMinutes = payload.resetMinutes.map(String.init) ?? "nil"
         let out = """
-            scraped at: \(Date())
-            percentages: \(pcts)
-            barPercents: \(bars)
-            resetMinutes: \(reset)
-            matchedPattern: \(pattern)
-            matchedText: \(matchText)
+        scraped at: \(Date())
+        percentages: \(payload.textPercents)
+        barPercents: \(payload.barPercents)
+        resetMinutes: \(resetMinutes)
+        matchedPattern: \(pattern)
+        matchedText: \(matchText)
 
-            --- raw aggregated text (first 2000 chars) ---
-            \(raw)
-            """
+        --- raw aggregated text (first 2000 chars) ---
+        \(raw)
+        """
         try? out.write(
             toFile: "/tmp/claude_counter_debug.txt",
             atomically: true,

@@ -9,7 +9,16 @@ import WebKit
 /// (cookies persist in shared WKWebsiteDataStore.default()).
 @MainActor
 final class QuotaScraper: NSObject {
-    static let usageURL = URL(string: "https://claude.ai/settings/usage")!
+    /// `claude.ai/settings/usage` is a constant; force-unwrap inside a
+    /// computed property would still trip lint rules. Build once and
+    /// `precondition` if Apple ever rejects the literal.
+    static let usageURL: URL = {
+        guard let url = URL(string: "https://claude.ai/settings/usage") else {
+            preconditionFailure("Static URL string is invalid")
+        }
+        return url
+    }()
+
     static let interval: TimeInterval = 60
     /// If a scrape doesn't finish in this window we kill the webview
     /// and try again on the next tick. Page typically loads in 2-5s.
@@ -17,6 +26,9 @@ final class QuotaScraper: NSObject {
     static let maxRetries = 1
 
     private weak var appState: AppState?
+    // Retained for the app's lifetime; cancellation isn't needed because
+    // the scraper itself never goes away.
+    // periphery:ignore
     private var timer: Timer?
     var webView: WKWebView?
     var watchdog: DispatchWorkItem?
@@ -34,13 +46,15 @@ final class QuotaScraper: NSObject {
 
     func scrape() {
         guard webView == nil else { return }
-        let wv = WebViewFactory.make(blockHeavy: true)
-        wv.navigationDelegate = self
-        wv.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
-        webView = wv
-        wv.load(URLRequest(url: Self.usageURL))
+        let webView = WebViewFactory.make(blockHeavy: true)
+        webView.navigationDelegate = self
+        webView.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
+        self.webView = webView
+        webView.load(URLRequest(url: Self.usageURL))
         armWatchdog()
     }
 
-    func appStateRef() -> AppState? { appState }
+    func appStateRef() -> AppState? {
+        appState
+    }
 }

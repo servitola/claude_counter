@@ -1,6 +1,8 @@
 import AppKit
 
 extension StatusBarController {
+    enum MenuTag: Int { case login = 1 }
+
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
@@ -22,34 +24,44 @@ extension StatusBarController {
         _ action: Selector,
         key: String = "",
         tag: Int = 0
-    ) -> NSMenuItem {
-        let it = NSMenuItem(title: title, action: action, keyEquivalent: key)
-        it.target = self
-        it.tag = tag
-        return it
+    )
+        -> NSMenuItem
+    {
+        let menuItem = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        menuItem.target = self
+        menuItem.tag = tag
+        return menuItem
     }
 
-    @objc func openWindow() { UsageWindow.shared.show() }
+    @objc func openWindow() {
+        UsageWindow.shared.show()
+    }
 
-    @objc func refresh() { scraper.scrape() }
+    @objc func refresh() {
+        scraper.scrape()
+    }
 
-    @objc func quit() { NSApp.terminate(nil) }
+    @objc func quit() {
+        NSApp.terminate(nil)
+    }
 
     @objc func toggleLogin() {
         do {
             try LoginItemManager.setEnabled(!LoginItemManager.isEnabled)
         } catch {
-            NSLog("[LoginItem] Failed: \(error.localizedDescription)")
+            AppLog.loginItem.error(
+                "Toggle failed: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
-
-    enum MenuTag: Int { case login = 1 }
 }
+
+// MARK: - StatusBarController + NSMenuDelegate
 
 extension StatusBarController: NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
-        if let it = menu.item(withTag: MenuTag.login.rawValue) {
-            it.state = LoginItemManager.isEnabled ? .on : .off
+        if let menuItem = menu.item(withTag: MenuTag.login.rawValue) {
+            menuItem.state = LoginItemManager.isEnabled ? .on : .off
         }
     }
 }

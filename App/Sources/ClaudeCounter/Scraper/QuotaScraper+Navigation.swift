@@ -1,6 +1,10 @@
 import Foundation
 import WebKit
 
+// `WKNavigation!` parameter types come straight from the WebKit SDK.
+// We can't change those signatures so we accept the IUOs in this file.
+// swiftlint:disable implicitly_unwrapped_optional
+
 extension QuotaScraper: WKNavigationDelegate {
     func webView(
         _ webView: WKWebView,
@@ -8,7 +12,7 @@ extension QuotaScraper: WKNavigationDelegate {
     ) {
         let url = webView.url?.absoluteString ?? ""
         if url.contains("/login") {
-            NSLog("[Scraper] Auth required — skip until user logs in")
+            AppLog.scraper.notice("Auth required — skipping until user logs in")
             tearDown()
             return
         }
@@ -22,23 +26,27 @@ extension QuotaScraper: WKNavigationDelegate {
     func webView(
         _ webView: WKWebView,
         didFail navigation: WKNavigation!,
-        withError error: Error
+        withError error: any Error
     ) {
-        NSLog("[Scraper] Failed: \(error.localizedDescription)")
+        AppLog.scraper.error("Navigation failed: \(error.localizedDescription, privacy: .public)")
         handleFailure()
     }
 
     func webView(
         _ webView: WKWebView,
         didFailProvisionalNavigation navigation: WKNavigation!,
-        withError error: Error
+        withError error: any Error
     ) {
-        NSLog("[Scraper] Provisional fail: \(error.localizedDescription)")
+        AppLog.scraper.error(
+            "Provisional fail: \(error.localizedDescription, privacy: .public)"
+        )
         handleFailure()
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        NSLog("[Scraper] WebContent process terminated mid-scrape")
+        AppLog.scraper.error("WebContent process terminated mid-scrape")
         handleFailure()
     }
 }
+
+// swiftlint:enable implicitly_unwrapped_optional

@@ -9,6 +9,9 @@ final class StatusBarController: NSObject {
     let appState: AppState
     let scraper: QuotaScraper
     let statusItem: NSStatusItem
+    // Retained for the app's lifetime; cancellation isn't needed because
+    // the controller itself never goes away.
+    // periphery:ignore
     var refreshTimer: Timer?
 
     init(appState: AppState, scraper: QuotaScraper) {

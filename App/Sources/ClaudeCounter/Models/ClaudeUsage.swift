@@ -1,7 +1,7 @@
 import Foundation
 
 /// Snapshot of Claude usage scraped from claude.ai/settings/usage.
-struct ClaudeUsage: Sendable, Equatable {
+struct ClaudeUsage: Equatable {
     /// Current 5h-window % (0..100). Nil until first successful scrape.
     var currentPercent: Int?
     /// Weekly % (0..100). Nil until first successful scrape.
@@ -14,7 +14,9 @@ struct ClaudeUsage: Sendable, Equatable {
     /// When this snapshot was produced.
     var updatedAt: Date?
 
-    static let empty = ClaudeUsage()
+    static let empty = Self()
 
-    var isLoaded: Bool { currentPercent != nil || weeklyPercent != nil }
+    var isLoaded: Bool {
+        currentPercent != nil || weeklyPercent != nil
+    }
 }

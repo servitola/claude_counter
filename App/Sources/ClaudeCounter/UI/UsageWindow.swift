@@ -18,9 +18,10 @@ final class UsageWindow {
             window.makeKeyAndOrderFront(nil)
             return
         }
-        window = makeWindow()
+        let win = makeWindow()
+        window = win
         NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
+        win.makeKeyAndOrderFront(nil)
     }
 
     private func makeWindow() -> NSWindow {
@@ -34,12 +35,20 @@ final class UsageWindow {
         win.isReleasedWhenClosed = false
         win.center()
         win.setFrameAutosaveName("ClaudeCounter.UsageWindow")
+        // NSWindow always has a contentView once initialised, but Swift
+        // doesn't know that. We assign one explicitly so the rest of the
+        // method works on a guaranteed value (and lint stays clean).
+        let content = win.contentView ?? NSView(
+            frame: NSRect(x: 0, y: 0, width: 900, height: 700)
+        )
+        win.contentView = content
+
         let webView = WebViewFactory.make()
         webView.navigationDelegate = coordinator
         webView.uiDelegate = coordinator
         webView.autoresizingMask = [.width, .height]
-        webView.frame = win.contentView!.bounds
-        win.contentView?.addSubview(webView)
+        webView.frame = content.bounds
+        content.addSubview(webView)
         coordinator.load(QuotaScraper.usageURL, in: webView)
         return win
     }

@@ -1,5 +1,7 @@
 import AppKit
 
+// MARK: - Main
+
 @main
 enum Main {
     static func main() {
@@ -13,10 +15,15 @@ enum Main {
     }
 }
 
+// MARK: - AppDelegate
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let appState = AppState()
     private let scraper = QuotaScraper()
+    // Held strongly for the app's lifetime; the NSStatusItem inside
+    // disappears from the menu bar the moment its owner is released.
+    // periphery:ignore
     private var statusBar: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -32,5 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(
         _ sender: NSApplication
-    ) -> Bool { false }
+    )
+        -> Bool
+    {
+        false
+    }
 }

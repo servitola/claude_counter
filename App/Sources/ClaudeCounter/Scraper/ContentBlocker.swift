@@ -23,11 +23,13 @@ final class ContentBlocker {
         ) { [weak self] list, error in
             Task { @MainActor in
                 if let error {
-                    NSLog("[Blocker] compile failed: \(error.localizedDescription)")
+                    AppLog.blocker.error(
+                        "compile failed: \(error.localizedDescription, privacy: .public)"
+                    )
                     return
                 }
                 self?.ruleList = list
-                NSLog("[Blocker] rule list compiled")
+                AppLog.blocker.info("rule list compiled")
             }
         }
     }
@@ -36,7 +38,9 @@ final class ContentBlocker {
         let resourceBlock = ["image", "font", "media", "popup", "ping"]
             .map { type in
                 """
-                {"trigger":{"url-filter":".*","resource-type":["\(type)"]},"action":{"type":"block"}}
+                {"trigger":{"url-filter":".*","resource-type":["\(
+                    type
+                )"]},"action":{"type":"block"}}
                 """
             }
         let trackerBlock = [

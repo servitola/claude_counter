@@ -1,11 +1,12 @@
 import AppKit
 
 /// Renders ClaudeUsage as a colored attributed string for the menu bar.
-/// Layout examples:
-///   "  12% 2h 15m   76%"     (default color)
-///   "  82% 45m   91%"        (82% orange — heads up)
-///   "  93% 12m   78%"        (93% red — actually pay attention)
-///   "  –% –m   –%"           (no data yet)
+/// Layout examples (gap = two spaces both at the start and between
+/// session/weekly):
+///   "  12% 2h 15m  76%"     (default color)
+///   "  82% 45m  91%"        (82% orange — heads up)
+///   "  93% 12m  78%"        (93% red — actually pay attention)
+///   "  –% –m  –%"           (no data yet)
 enum QuotaTitleFormatter {
     /// Orange ≥ this %, red ≥ the next.
     static let warnThreshold = 80
@@ -29,19 +30,19 @@ enum QuotaTitleFormatter {
 
     private static func colorFor(_ pct: Int) -> NSColor? {
         switch pct {
-        case alertThreshold...: return .systemRed
-        case warnThreshold...:  return .systemOrange
-        default:                return nil
+        case alertThreshold...: .systemRed
+        case warnThreshold...: .systemOrange
+        default: nil
         }
     }
 
-    private static func sessionPart(_ u: ClaudeUsage, now: Date) -> String {
-        let pct = u.currentPercent.map { "\($0)%" } ?? "–%"
-        return "\(pct) \(formatRemaining(u.currentResetAt, now: now))"
+    private static func sessionPart(_ usage: ClaudeUsage, now: Date) -> String {
+        let pct = usage.currentPercent.map { value in "\(value)%" } ?? "–%"
+        return "\(pct) \(formatRemaining(usage.currentResetAt, now: now))"
     }
 
-    private static func weeklyPart(_ u: ClaudeUsage) -> String {
-        u.weeklyPercent.map { "\($0)%" } ?? "–%"
+    private static func weeklyPart(_ usage: ClaudeUsage) -> String {
+        usage.weeklyPercent.map { value in "\(value)%" } ?? "–%"
     }
 
     /// "1h 23m" / "45m" / "0m" / "–m" depending on the date.

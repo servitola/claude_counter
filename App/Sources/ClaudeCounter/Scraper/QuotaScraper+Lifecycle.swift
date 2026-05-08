@@ -2,13 +2,21 @@ import Foundation
 import WebKit
 
 extension QuotaScraper {
+    /// Static blank URL — built once so the runtime path can't fail.
+    private static let blankURL: URL = {
+        guard let url = URL(string: "about:blank") else {
+            preconditionFailure("about:blank failed to parse — impossible")
+        }
+        return url
+    }()
+
     /// Schedule a hard kill of the current scrape if it hangs.
     func armWatchdog() {
         watchdog?.cancel()
         let item = DispatchWorkItem { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
-                NSLog("[Scraper] Watchdog fired — killing webview")
+                AppLog.scraper.warning("Watchdog fired — killing webview")
                 self.tearDown()
             }
         }
@@ -23,15 +31,15 @@ extension QuotaScraper {
     func tearDown() {
         watchdog?.cancel()
         watchdog = nil
-        if let wv = self.webView {
-            wv.stopLoading()
-            wv.navigationDelegate = nil
-            wv.uiDelegate = nil
+        if let webView {
+            webView.stopLoading()
+            webView.navigationDelegate = nil
+            webView.uiDelegate = nil
             // Loading about:blank releases the page DOM faster than
             // just dropping the reference.
-            wv.load(URLRequest(url: URL(string: "about:blank")!))
+            webView.load(URLRequest(url: Self.blankURL))
         }
-        self.webView = nil
+        webView = nil
     }
 
     /// Called by Navigation extension on failure. Retries once on the
@@ -55,5 +63,7 @@ extension QuotaScraper {
         tearDown()
     }
 
-    func currentWebView() -> WKWebView? { self.webView }
+    func currentWebView() -> WKWebView? {
+        webView
+    }
 }
