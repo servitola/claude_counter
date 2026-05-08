@@ -17,8 +17,10 @@ extension QuotaScraper: WKNavigationDelegate {
             return
         }
         if url.contains("about:blank") { return }
-        // SPA needs time to render the React tree before extracting.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+        // SPA needs time to render the React tree. Start polling
+        // 1s after didFinish; the extract handler retries every
+        // `pollInterval` until found=true or `maxExtractAttempts`.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
             Task { @MainActor in self?.extract() }
         }
     }

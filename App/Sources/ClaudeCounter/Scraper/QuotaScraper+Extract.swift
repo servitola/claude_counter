@@ -4,6 +4,7 @@ import WebKit
 extension QuotaScraper {
     func extract() {
         guard let webView = currentWebView() else { return }
+        extractAttempts += 1
         webView.evaluateJavaScript(Self.extractionJS) { [weak self] result, error in
             Task { @MainActor in
                 self?.handle(result: result, error: error)
@@ -22,6 +23,19 @@ extension QuotaScraper {
             handleFailure()
             return
         }
+
+        // SPA may not have rendered the data yet — keep polling until
+        // either the JS finds it or we exhaust attempts. The watchdog
+        // still bounds total scrape time.
+        if !payload.found, extractAttempts < Self.maxExtractAttempts {
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + Self.pollInterval
+            ) { [weak self] in
+                Task { @MainActor in self?.extract() }
+            }
+            return
+        }
+
         dumpDebug(payload)
         if let parsed = QuotaParser.parse(payload) {
             appStateRef()?.usage = parsed
@@ -31,16 +45,19 @@ extension QuotaScraper {
         finishScrape()
     }
 
-    /// Always-on dump of the latest scrape to `/tmp/claude_counter_debug.txt`.
-    /// Unified logging filters non-Apple-signed bundles aggressively;
-    /// this file is the only runtime visibility we get on user machines.
+    /// Always-on dump of the latest scrape to
+    /// `~/Library/Logs/ClaudeCounter/scrape-debug.txt`.
     private func dumpDebug(_ payload: QuotaPayload) {
+        ScrapeDebugLog.default.write(Self.formatDebug(payload, now: Date()))
+    }
+
+    nonisolated static func formatDebug(_ payload: QuotaPayload, now: Date) -> String {
         let raw = payload.raw.prefix(2000)
         let pattern = payload.matchedPattern ?? "nil"
         let matchText = payload.matchedText ?? "(no match)"
         let resetMinutes = payload.resetMinutes.map(String.init) ?? "nil"
-        let out = """
-        scraped at: \(Date())
+        return """
+        scraped at: \(now)
         percentages: \(payload.textPercents)
         barPercents: \(payload.barPercents)
         resetMinutes: \(resetMinutes)
@@ -50,10 +67,5 @@ extension QuotaScraper {
         --- raw aggregated text (first 2000 chars) ---
         \(raw)
         """
-        try? out.write(
-            toFile: "/tmp/claude_counter_debug.txt",
-            atomically: true,
-            encoding: .utf8
-        )
     }
 }

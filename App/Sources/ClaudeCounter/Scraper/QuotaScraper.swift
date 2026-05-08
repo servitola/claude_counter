@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import WebKit
 
@@ -24,6 +25,11 @@ final class QuotaScraper: NSObject {
     /// and try again on the next tick. Page typically loads in 2-5s.
     static let watchdogTimeout: TimeInterval = 30
     static let maxRetries = 1
+    /// Extraction polling. The React tree usually populates within 2-3s
+    /// after didFinish; we start at 1s and retry up to 8 times at 1s
+    /// intervals. Watchdog still bounds total scrape time.
+    static let pollInterval: TimeInterval = 1
+    static let maxExtractAttempts = 8
 
     private weak var appState: AppState?
     // Retained for the app's lifetime; cancellation isn't needed because
@@ -33,6 +39,11 @@ final class QuotaScraper: NSObject {
     var webView: WKWebView?
     var watchdog: DispatchWorkItem?
     var retryCount = 0
+    var extractAttempts = 0
+    // Wake-notification token. Held strongly so the observer survives
+    // for the scraper's lifetime; the scraper itself never deallocates.
+    // periphery:ignore
+    private var wakeObserver: (any NSObjectProtocol)?
 
     func start(appState: AppState) {
         self.appState = appState
@@ -42,10 +53,30 @@ final class QuotaScraper: NSObject {
         ) { [weak self] _ in
             Task { @MainActor in self?.scrape() }
         }
+        observeWake()
+    }
+
+    /// `Timer` is paused while the system sleeps and may take a full
+    /// interval to fire after wake — long enough that the displayed
+    /// usage looks stale. Subscribe to `didWakeNotification` and force
+    /// an immediate scrape so the menu-bar refreshes the moment the
+    /// user returns.
+    private func observeWake() {
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                AppLog.scraper.notice("System wake — forcing scrape")
+                self?.scrape()
+            }
+        }
     }
 
     func scrape() {
         guard webView == nil else { return }
+        extractAttempts = 0
         let webView = WebViewFactory.make(blockHeavy: true)
         webView.navigationDelegate = self
         webView.frame = NSRect(x: 0, y: 0, width: 1, height: 1)

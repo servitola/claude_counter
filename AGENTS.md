@@ -162,7 +162,7 @@ Resulting `ClaudeUsage` stores `currentResetAt: Date?` (not minutes)
 so the menu-bar title's 60-second refresh ticks down without a fresh
 scrape.
 
-`/tmp/claude_counter_debug.txt` is rewritten on every scrape with
+`~/Library/Logs/ClaudeCounter/scrape-debug.txt` is rewritten on every scrape with
 percentages, bar values, matched pattern, and the first 2000 chars of
 aggregated text. NSLog from a non-Apple-signed bundle is filtered
 out of unified logging — this file is the only runtime visibility.
@@ -183,7 +183,7 @@ brand assets, and CAPTCHAs render normally.
 - **claude.ai changing markup** breaks regex matching. The block
   fallback (`[role=progressbar]`) covers the percentages but not the
   reset time — if the time disappears, check
-  `/tmp/claude_counter_debug.txt` and adjust patterns in
+  `~/Library/Logs/ClaudeCounter/scrape-debug.txt` and adjust patterns in
   `QuotaScraper+JS.swift`.
 - **First scrape after install runs unblocked.** Acceptable — adds
   ~70 MB for ~2 seconds, then steady-state.
