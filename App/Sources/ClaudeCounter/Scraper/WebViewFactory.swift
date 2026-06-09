@@ -19,6 +19,12 @@ enum WebViewFactory {
         }
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.customUserAgent = safariUserAgent
+        if blockHeavy {
+            // Hidden scraper view — disable gestures and link previews to
+            // avoid allocating unnecessary recognizers and hover state.
+            webView.allowsLinkPreview = false
+            webView.allowsBackForwardNavigationGestures = false
+        }
         return webView
     }
 

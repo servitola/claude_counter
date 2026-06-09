@@ -32,10 +32,19 @@ struct ScrapeDebugLog {
         return target ?? URL(fileURLWithPath: NSTemporaryDirectory())
     }
 
+    static let logQueue = DispatchQueue(
+        label: "com.claudecounter.debuglog",
+        qos: .utility
+    )
+
     func write(_ contents: String) {
-        try? FileManager.default.createDirectory(
-            at: directory, withIntermediateDirectories: true
-        )
-        try? contents.write(to: fileURL, atomically: true, encoding: .utf8)
+        let fileURL = fileURL
+        let directory = directory
+        Self.logQueue.async {
+            try? FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true
+            )
+            try? contents.write(to: fileURL, atomically: true, encoding: .utf8)
+        }
     }
 }

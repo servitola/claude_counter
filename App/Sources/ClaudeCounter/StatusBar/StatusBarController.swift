@@ -9,9 +9,6 @@ final class StatusBarController: NSObject {
     let appState: AppState
     let scraper: QuotaScraper
     let statusItem: NSStatusItem
-    // Retained for the app's lifetime; cancellation isn't needed because
-    // the controller itself never goes away.
-    // periphery:ignore
     var refreshTimer: Timer?
 
     init(appState: AppState, scraper: QuotaScraper) {
@@ -46,5 +43,8 @@ final class StatusBarController: NSObject {
                     QuotaTitleFormatter.render(self.appState.usage)
             }
         }
+        // Coalesce with other system timers; a few seconds of drift is fine
+        // for a countdown display that only changes minute-by-minute.
+        refreshTimer?.tolerance = 10
     }
 }

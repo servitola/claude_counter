@@ -32,9 +32,6 @@ final class QuotaScraper: NSObject {
     static let maxExtractAttempts = 8
 
     private weak var appState: AppState?
-    // Retained for the app's lifetime; cancellation isn't needed because
-    // the scraper itself never goes away.
-    // periphery:ignore
     private var timer: Timer?
     var webView: WKWebView?
     var watchdog: DispatchWorkItem?
@@ -53,6 +50,9 @@ final class QuotaScraper: NSObject {
         ) { [weak self] _ in
             Task { @MainActor in self?.scrape() }
         }
+        // Allow 10s leeway so macOS can coalesce this wakeup with other
+        // system timers instead of interrupting the CPU exactly on the dot.
+        timer?.tolerance = 10
         observeWake()
     }
 

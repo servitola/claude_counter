@@ -16,6 +16,7 @@ struct ScrapeDebugLogTests {
         defer { try? FileManager.default.removeItem(at: temp) }
 
         log.write("hello debug")
+        ScrapeDebugLog.logQueue.sync {} // drain async write before reading
 
         let read = try String(contentsOf: log.fileURL, encoding: .utf8)
         #expect(read == "hello debug")
@@ -31,6 +32,8 @@ struct ScrapeDebugLogTests {
         }
 
         log.write("created via mkdir -p")
+        ScrapeDebugLog.logQueue.sync {} // drain async write before checking
+
         let exists = FileManager.default.fileExists(atPath: log.fileURL.path)
         #expect(exists == true)
     }
