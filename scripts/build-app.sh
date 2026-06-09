@@ -79,12 +79,15 @@ ${ICON_PLIST_KEY}    <key>LSMinimumSystemVersion</key>
 PLIST
 
 # Pick signing identity: stable self-signed cert if present, else ad-hoc.
-# A self-signed cert won't appear in `find-identity -p codesigning` (no
-# trust attachment) but codesign can still use it by name as long as the
-# private key is in the keychain.
-if security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
-    SIGN_ID="$CERT_NAME"
-    echo "Signing with stable identity: $CERT_NAME"
+# Resolve by SHA-1 hash (not name) to avoid "ambiguous" errors when
+# setup-cert was run more than once and left duplicate certs in the
+# keychain. `find-identity -p basic` lists certs with private keys;
+# we take the first match.
+CERT_SHA=$(security find-identity -p basic 2>/dev/null \
+    | grep "\"$CERT_NAME\"" | head -1 | awk '{print $2}')
+if [[ -n "$CERT_SHA" ]]; then
+    SIGN_ID="$CERT_SHA"
+    echo "Signing with stable identity: $CERT_NAME ($CERT_SHA)"
 else
     SIGN_ID="-"
     echo "WARN: stable cert not found — using ad-hoc signing."
