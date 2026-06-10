@@ -15,7 +15,7 @@ enum QuotaTitleFormatter {
     static func render(_ usage: ClaudeUsage, now: Date = Date()) -> NSAttributedString {
         let gap = "  "
         let session = sessionPart(usage, now: now)
-        let weekly = weeklyPart(usage)
+        let weekly = weeklyPart(usage, now: now)
         let str = NSMutableAttributedString(string: gap + session)
         if let pct = usage.currentPercent, let color = colorFor(pct) {
             let range = NSRange(
@@ -41,8 +41,10 @@ enum QuotaTitleFormatter {
         return "\(pct) \(formatRemaining(usage.currentResetAt, now: now))"
     }
 
-    private static func weeklyPart(_ usage: ClaudeUsage) -> String {
-        usage.weeklyPercent.map { value in "\(value)%" } ?? "–%"
+    private static func weeklyPart(_ usage: ClaudeUsage, now: Date) -> String {
+        let pct = usage.weeklyPercent.map { "\($0)%" } ?? "–%"
+        guard let resetAt = usage.weeklyResetAt else { return pct }
+        return "\(pct) \(formatRemaining(resetAt, now: now))"
     }
 
     /// "1h 23m" / "45m" / "0m" / "–m" depending on the date.

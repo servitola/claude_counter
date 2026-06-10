@@ -22,6 +22,18 @@ struct QuotaTitleFormatterTests {
         #expect(title.string == "  12% 2h 15m  76%")
     }
 
+    @Test func weeklyResetTimeAppendsAfterPercent() {
+        let usage = ClaudeUsage(
+            currentPercent: 6,
+            weeklyPercent: 32,
+            currentResetAt: now.addingTimeInterval(60 * 271),
+            weeklyResetAt: now.addingTimeInterval(60 * 551),
+            updatedAt: now
+        )
+        let title = QuotaTitleFormatter.render(usage, now: now)
+        #expect(title.string == "  6% 4h 31m  32% 9h 11m")
+    }
+
     @Test func warnThresholdAtEightyTurnsOrange() {
         let usage = ClaudeUsage(
             currentPercent: QuotaTitleFormatter.warnThreshold,

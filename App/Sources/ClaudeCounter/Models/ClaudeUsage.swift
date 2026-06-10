@@ -11,6 +11,8 @@ struct ClaudeUsage: Equatable {
     /// fresh scrape — the formatter recomputes minutes-remaining on
     /// each render.
     var currentResetAt: Date?
+    /// Wall-clock time when the weekly limit resets (typically 7 days rolling).
+    var weeklyResetAt: Date?
     /// When this snapshot was produced.
     var updatedAt: Date?
 

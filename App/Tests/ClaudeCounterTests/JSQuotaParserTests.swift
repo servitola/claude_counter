@@ -138,6 +138,18 @@ struct JSQuotaParserTests {
         #expect(payload?.matchedPattern == "2")
     }
 
+    @Test func weeklyResetMinutesExtractedSeparately() {
+        // Realistic snapshot: current session has its own reset, weekly has its own.
+        // Both must be extracted independently.
+        let text = """
+        Current session | 6% used | Resets in 4 hr 31 min | \
+        Weekly limits | All models | 32% used | Resets in 9 hr 11 min
+        """
+        let payload = JSQuotaParserHarness.parse(text: text, now: now)
+        #expect(payload?.resetMinutes == 271)
+        #expect(payload?.weeklyResetMinutes == 551)
+    }
+
     @Test func sessionNotStartedYieldsNilResetTime() {
         // When the current session hasn't started, claude.ai shows
         // "Starts when a message is sent" instead of "Resets in X".

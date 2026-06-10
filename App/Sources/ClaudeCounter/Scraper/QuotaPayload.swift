@@ -8,6 +8,7 @@ struct QuotaPayload: Equatable {
     let textPercents: [Double]
     let barPercents: [Double]
     let resetMinutes: Int?
+    let weeklyResetMinutes: Int?
     let matchedPattern: String?
     let matchedText: String?
     let raw: String
@@ -17,6 +18,7 @@ struct QuotaPayload: Equatable {
         textPercents: [Double] = [],
         barPercents: [Double] = [],
         resetMinutes: Int? = nil,
+        weeklyResetMinutes: Int? = nil,
         matchedPattern: String? = nil,
         matchedText: String? = nil,
         raw: String = ""
@@ -25,6 +27,7 @@ struct QuotaPayload: Equatable {
         self.textPercents = textPercents
         self.barPercents = barPercents
         self.resetMinutes = resetMinutes
+        self.weeklyResetMinutes = weeklyResetMinutes
         self.matchedPattern = matchedPattern
         self.matchedText = matchedText
         self.raw = raw
@@ -37,11 +40,13 @@ struct QuotaPayload: Equatable {
         let found = (dict["found"] as? Bool) ?? false
         let textPcts = (dict["percentages"] as? [Double]) ?? []
         let barPcts = (dict["barPercents"] as? [Double]) ?? []
-        let mins: Int? = {
-            if let asDouble = dict["resetMinutes"] as? Double { return Int(asDouble) }
-            if let asInt = dict["resetMinutes"] as? Int { return asInt }
+        func intField(_ key: String) -> Int? {
+            if let asDouble = dict[key] as? Double { return Int(asDouble) }
+            if let asInt = dict[key] as? Int { return asInt }
             return nil
-        }()
+        }
+        let mins = intField("resetMinutes")
+        let weeklyMins = intField("weeklyResetMinutes")
         let pattern: String? = {
             if let str = dict["matchedPattern"] as? String { return str }
             if let int = dict["matchedPattern"] as? Int { return String(int) }
@@ -53,6 +58,7 @@ struct QuotaPayload: Equatable {
             textPercents: textPcts,
             barPercents: barPcts,
             resetMinutes: mins,
+            weeklyResetMinutes: weeklyMins,
             matchedPattern: pattern,
             matchedText: dict["matchedText"] as? String,
             raw: raw

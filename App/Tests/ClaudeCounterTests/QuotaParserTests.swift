@@ -62,6 +62,16 @@ struct QuotaParserTests {
         #expect(usage?.currentResetAt == now.addingTimeInterval(60 * 90))
     }
 
+    @Test func weeklyResetMinutesProjectedForward() {
+        let payload = QuotaPayload(
+            found: true,
+            textPercents: [10, 32],
+            weeklyResetMinutes: 551
+        )
+        let usage = QuotaParser.parse(payload, now: now)
+        #expect(usage?.weeklyResetAt == now.addingTimeInterval(60 * 551))
+    }
+
     @Test func percentsAreFloored() {
         let payload = QuotaPayload(
             found: true,

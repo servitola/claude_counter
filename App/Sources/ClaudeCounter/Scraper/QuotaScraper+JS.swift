@@ -73,6 +73,30 @@ extension QuotaScraper {
             result.found = true;
         }
 
+        // Extract the weekly reset time — first "Resets in X" after the
+        // "Weekly" header. Kept separate from the current-session reset so
+        // both can be displayed independently in the menu bar.
+        if (weeklyIdx !== -1) {
+            var weeklyText = allText.substring(weeklyIdx);
+            var wBest = null, wBestIdx = Infinity, wBestPi = -1;
+            for (var wpi = 0; wpi < resetPatterns.length; wpi++) {
+                var wm = resetPatterns[wpi].exec(weeklyText);
+                if (wm !== null && wm.index < wBestIdx) {
+                    wBestIdx = wm.index; wBest = wm; wBestPi = wpi;
+                }
+            }
+            if (wBest !== null) {
+                if (wBestPi === 0 || wBestPi === 3) {
+                    result.weeklyResetMinutes =
+                        parseInt(wBest[1] || '0') * 60 + parseInt(wBest[2] || '0');
+                } else if (wBestPi === 1 || wBestPi === 5) {
+                    result.weeklyResetMinutes = parseInt(wBest[1]) * 60;
+                } else {
+                    result.weeklyResetMinutes = parseInt(wBest[1]);
+                }
+            }
+        }
+
         // Absolute reset time: "Resets at 9:30 PM" → minutes-from-now.
         if (result.resetMinutes == null) {
             var atMatch = allText.match(
