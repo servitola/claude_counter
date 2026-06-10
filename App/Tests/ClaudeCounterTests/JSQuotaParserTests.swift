@@ -137,6 +137,20 @@ struct JSQuotaParserTests {
         #expect(payload?.matchedPattern == "2")
     }
 
+    @Test func currentSessionMinutesWinsOverWeeklyHoursMinutes() {
+        // Regression: when current session shows "Resets in 28 min" and the
+        // weekly section shows "Resets in 10 hr 8 min", the parser used to
+        // return 608 (weekly) because hours+minutes pattern had higher priority
+        // than minutes-only. Fix: pick the earliest match by text position.
+        let text = """
+        Current session | 69% used | Resets in 28 min | \
+        Weekly limits | All models | 31% used | Resets in 10 hr 8 min
+        """
+        let payload = JSQuotaParserHarness.parse(text: text, now: now)
+        #expect(payload?.resetMinutes == 28)
+        #expect(payload?.matchedPattern == "2")
+    }
+
     @Test func realisticBarFallbackOnly() {
         // claude.ai briefly served progress bars without text labels.
         // Text has no "% used" matches; bars carry the values.
