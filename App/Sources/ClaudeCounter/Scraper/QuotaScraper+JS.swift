@@ -40,16 +40,19 @@ extension QuotaScraper {
             /(\\d+)\\s*m(?:in)?(?:ute)?s?\\s*(?:left|remaining)/i,
             /(\\d+)\\s*h(?:ou)?r?s?\\s*(?:left|remaining)/i
         ];
-        // Find the earliest occurrence in the text across all patterns.
-        // Previously we took the first pattern that matched anywhere —
-        // that caused "Resets in 10 hr 8 min" (weekly, later in DOM) to
-        // win over "Resets in 28 min" (current session, earlier in DOM)
-        // because the hours+minutes pattern has higher priority.
+        // Only search for reset time in the current-session section —
+        // text that appears before the "Weekly" header. This prevents
+        // the weekly reset time from being picked up when the current
+        // session hasn't started ("Starts when a message is sent").
+        // Also takes the earliest match by position so "Resets in 28 min"
+        // beats "Resets in 10 hr 8 min" even if both were in the same section.
+        var weeklyIdx = allText.search(/\\bWeekly\\b/i);
+        var sessionText = weeklyIdx !== -1 ? allText.substring(0, weeklyIdx) : allText;
         var bestMatch = null;
         var bestIndex = Infinity;
         var bestPi = -1;
         for (var pi = 0; pi < resetPatterns.length; pi++) {
-            var m = resetPatterns[pi].exec(allText);
+            var m = resetPatterns[pi].exec(sessionText);
             if (m !== null && m.index < bestIndex) {
                 bestIndex = m.index;
                 bestMatch = m;

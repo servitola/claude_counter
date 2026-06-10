@@ -23,8 +23,9 @@ struct JSQuotaParserTests {
     }
 
     @Test func parsesCurrentAndWeeklyPercentages() {
+        // Reset time must appear before "Weekly" — matches the real DOM order.
         let payload = JSQuotaParserHarness.parse(
-            text: "Current 5h | 12% used | Weekly | 76% used | Resets in 2h 15m",
+            text: "Current 5h | 12% used | Resets in 2h 15m | Weekly | 76% used",
             now: now
         )
         #expect(payload?.textPercents == [12, 76])
@@ -135,6 +136,21 @@ struct JSQuotaParserTests {
         #expect(payload?.textPercents == [93, 88])
         #expect(payload?.resetMinutes == 12)
         #expect(payload?.matchedPattern == "2")
+    }
+
+    @Test func sessionNotStartedYieldsNilResetTime() {
+        // When the current session hasn't started, claude.ai shows
+        // "Starts when a message is sent" instead of "Resets in X".
+        // The weekly section has "Resets in 9 hr 36 min", but that must
+        // NOT become the displayed reset time.
+        let text = """
+        Current session | 0% used | Starts when a message is sent | \
+        Weekly limits | All models | 31% used | Resets in 9 hr 36 min
+        """
+        let payload = JSQuotaParserHarness.parse(text: text, now: now)
+        #expect(payload?.found == true)
+        #expect(payload?.textPercents.first == 0)
+        #expect(payload?.resetMinutes == nil)
     }
 
     @Test func currentSessionMinutesWinsOverWeeklyHoursMinutes() {
