@@ -28,6 +28,29 @@ enum WebViewFactory {
         return webView
     }
 
+    /// Evict only WebKit's HTTP resource cache (disk + memory) from the
+    /// shared `.default()` store — the exact store every WebView here uses.
+    ///
+    /// claude.ai ships content-hashed asset bundles several times a week.
+    /// `WKWebsiteDataStore` caches every new build but never evicts the old
+    /// ones, so `WebKit/NetworkCache` grows unbounded (observed at 700 MB+).
+    /// Purging on launch resets it; assets re-download lazily on first use.
+    ///
+    /// Cookies and localStorage are deliberately excluded, so the claude.ai
+    /// login survives. `removeData` is asynchronous and must not be awaited
+    /// on the main thread — fire and forget.
+    @MainActor
+    static func purgeResourceCache() {
+        let types: Set<String> = [
+            WKWebsiteDataTypeDiskCache,
+            WKWebsiteDataTypeMemoryCache
+        ]
+        WKWebsiteDataStore.default().removeData(
+            ofTypes: types,
+            modifiedSince: .distantPast
+        ) {}
+    }
+
     private static let safariUserAgent = """
     Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
     AppleWebKit/605.1.15 (KHTML, like Gecko) \

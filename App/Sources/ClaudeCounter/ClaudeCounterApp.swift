@@ -31,6 +31,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // takes ~50-200ms — first scrape may run before it's ready,
         // every subsequent one is blocked.
         ContentBlocker.shared.prewarm()
+        // Evict WebKit's HTTP resource cache (disk + memory) on every
+        // launch. claude.ai's content-hashed bundles otherwise accumulate
+        // in the shared .default() store unbounded (700 MB+ observed).
+        // Async, cookies/localStorage untouched, so login survives.
+        WebViewFactory.purgeResourceCache()
         statusBar = StatusBarController(
             appState: appState, scraper: scraper
         )
