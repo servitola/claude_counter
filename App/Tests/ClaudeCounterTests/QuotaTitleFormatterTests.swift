@@ -84,6 +84,10 @@ struct QuotaTitleFormatterTests {
         (60 * 65, "1h 5m"),
         (60 * 135, "2h 15m"),
         (60 * 720, "12h"),
+        (60 * 60 * 24, "1d"),
+        (60 * (60 * 24 + 65), "1d 1h"),
+        (60 * (60 * 24 * 4 + 60 * 2), "4d 2h"),
+        (60 * (60 * 24 * 6 + 60 * 23), "6d 23h"),
     ])
     func formatRemainingFormatsDurations(seconds: Int, expected: String) {
         let resetAt = now.addingTimeInterval(TimeInterval(seconds))

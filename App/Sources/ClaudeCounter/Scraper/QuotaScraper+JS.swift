@@ -18,6 +18,33 @@ extension QuotaScraper {
     /// `nowMs` is injected so the absolute-time branch ("Resets at 9:30 PM")
     /// is deterministic in tests.
     nonisolated static let parserLibraryJS = """
+    // Absolute weekday reset: "Resets Wed 10:00 PM" → minutes until the
+    // next occurrence of that weekday+time (local time). Weekly limits on
+    // claude.ai are phrased this way (days out), not as "Resets in X".
+    function parseWeekdayReset(text, nowMs) {
+        var m = text.match(
+            /[Rr]eset[s]?\\s+(?:on\\s+)?(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\\s+(\\d{1,2})[:\\.](\\d{2})\\s*(AM|PM|am|pm)?/
+        );
+        if (!m) { return null; }
+        var days = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+        var target = days[m[1].toLowerCase().substring(0, 3)];
+        if (target == null) { return null; }
+        var hh = parseInt(m[2]);
+        var mm = parseInt(m[3]);
+        var ampm = (m[4] || '').toUpperCase();
+        if (ampm === 'PM' && hh < 12) { hh += 12; }
+        if (ampm === 'AM' && hh === 12) { hh = 0; }
+        var now = new Date(nowMs);
+        var deltaDays = (target - now.getDay() + 7) % 7;
+        var cand = new Date(
+            now.getFullYear(), now.getMonth(), now.getDate() + deltaDays, hh, mm
+        );
+        if (cand <= now) {
+            cand = new Date(cand.getTime() + 7 * 24 * 3600 * 1000);
+        }
+        return Math.round((cand - now) / 60000);
+    }
+
     function parseQuotaFromText(allText, barPcts, nowMs) {
         var result = { found: false, raw: allText.substring(0, 4000) };
 
@@ -46,7 +73,15 @@ extension QuotaScraper {
         // session hasn't started ("Starts when a message is sent").
         // Also takes the earliest match by position so "Resets in 28 min"
         // beats "Resets in 10 hr 8 min" even if both were in the same section.
-        var weeklyIdx = allText.search(/\\bWeekly\\b/i);
+        //
+        // Anchor the search AFTER "Current session": a warning banner
+        // ("You're close to your weekly limit") can contain the word
+        // "weekly" above the section header, and matching it there would
+        // misclassify the session reset as weekly (and leave session blank).
+        var sessionStart = allText.search(/Current session/i);
+        var weeklyBase = sessionStart >= 0 ? sessionStart : 0;
+        var weeklyRel = allText.substring(weeklyBase).search(/\\bWeekly\\b/i);
+        var weeklyIdx = weeklyRel === -1 ? -1 : weeklyBase + weeklyRel;
         var sessionText = weeklyIdx !== -1 ? allText.substring(0, weeklyIdx) : allText;
         var bestMatch = null;
         var bestIndex = Infinity;
@@ -94,6 +129,11 @@ extension QuotaScraper {
                 } else {
                     result.weeklyResetMinutes = parseInt(wBest[1]);
                 }
+            } else {
+                // No "Resets in X" in the weekly section — it's usually an
+                // absolute weekday time ("Resets Wed 10:00 PM"), days out.
+                var wk = parseWeekdayReset(weeklyText, nowMs);
+                if (wk != null) { result.weeklyResetMinutes = wk; }
             }
         }
 

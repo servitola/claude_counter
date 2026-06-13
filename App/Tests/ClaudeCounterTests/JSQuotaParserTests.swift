@@ -179,6 +179,44 @@ struct JSQuotaParserTests {
         #expect(payload?.matchedPattern == "2")
     }
 
+    @Test func warningBannerWeeklyDoesNotStealSessionReset() {
+        // Live 2026-06 snapshot: a warning banner ("...your weekly limit")
+        // sits ABOVE "Current session". The bare \\bWeekly\\b split used to
+        // land on the banner, leaving the session reset blank (–m) and
+        // assigning the session's "1 hr 29 min" to the weekly slot.
+        // After the fix: session reset = 89 min; weekly reset = the
+        // absolute "Resets Wed 10:00 PM" (days out), never 89.
+        let text = """
+        You're close to your weekly limit. Turn on usage credits to keep going. | \
+        Turn on usage credits | Plan usage limits | Max (20x) | \
+        Current session | Resets in 1 hr 29 min | 75% used | \
+        Weekly limits | Learn more about usage limits | \
+        All models | Resets Wed 10:00 PM | 80% used | \
+        Sonnet only | Resets Wed 10:00 PM | 53% used
+        """
+        let payload = JSQuotaParserHarness.parse(text: text, now: now)
+        #expect(payload?.textPercents == [75, 80, 53])
+        #expect(payload?.resetMinutes == 89)
+        let weekly = payload?.weeklyResetMinutes ?? -1
+        #expect(weekly != 89)
+        // Days out regardless of host timezone: well above the session's
+        // 89 min, and under a full week.
+        #expect(weekly > 8 * 60)
+        #expect(weekly < 8 * 24 * 60)
+    }
+
+    @Test func weekdayAbsoluteWeeklyResetParses() {
+        let text = """
+        Current session | 10% used | Resets in 30 min | \
+        Weekly limits | All models | 80% used | Resets Mon 4:00 AM
+        """
+        let payload = JSQuotaParserHarness.parse(text: text, now: now)
+        #expect(payload?.resetMinutes == 30)
+        let weekly = payload?.weeklyResetMinutes ?? -1
+        #expect(weekly > 0)
+        #expect(weekly <= 7 * 24 * 60)
+    }
+
     @Test func realisticBarFallbackOnly() {
         // claude.ai briefly served progress bars without text labels.
         // Text has no "% used" matches; bars carry the values.

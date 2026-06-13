@@ -47,11 +47,19 @@ enum QuotaTitleFormatter {
         return "\(pct) \(formatRemaining(resetAt, now: now))"
     }
 
-    /// "1h 23m" / "45m" / "0m" / "–m" depending on the date.
+    /// "4d 2h" / "1h 23m" / "45m" / "0m" / "–m" depending on the date.
+    /// Weekly limits reset days out, so durations ≥ 1 day collapse to
+    /// "Nd Hh" rather than an unwieldy hour count ("98h").
     static func formatRemaining(_ resetAt: Date?, now: Date = Date()) -> String {
         guard let resetAt else { return "–m" }
         let secs = resetAt.timeIntervalSince(now)
         let mins = max(0, Int(secs / 60))
+        let dayMins = 24 * 60
+        if mins >= dayMins {
+            let days = mins / dayMins
+            let h = (mins % dayMins) / 60
+            return h > 0 ? "\(days)d \(h)h" : "\(days)d"
+        }
         if mins >= 60 {
             let h = mins / 60
             let m = mins % 60
