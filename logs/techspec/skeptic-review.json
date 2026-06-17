@@ -1,0 +1,41 @@
+{
+  "verdict": "pass",
+  "findings": [
+    {
+      "severity": "info",
+      "claim": "Round-1 HIGH: referenced fixtures did not exist",
+      "reality": "RESOLVED. work/api-scraper/fixtures/usage.json and organizations.json now both exist. usage.json contains a limits[] array with kind=session/weekly_all/weekly_scoped, resets_at ISO-8601 with fractional seconds (e.g. 2026-06-17T13:49:59.900458+00:00), plus flat five_hour/seven_day fields - exactly the shape Data Models and Decision 5 describe. organizations.json is a JSON array of org objects each with a uuid field, matching OrgSummary { uuid }.",
+      "location": "work/api-scraper/fixtures/usage.json, organizations.json"
+    },
+    {
+      "severity": "info",
+      "claim": "Round-1 MED: spike JSON shape unverifiable (no persisted fixture)",
+      "reality": "RESOLVED. The field names is_active, kind, group, resets_at, weekly_all, weekly_scoped, and top-level five_hour/seven_day are all present in the now-committed usage.json fixture, matching Data Models and Decision 5. The /usage endpoint shape is treated as verified per the live spike.",
+      "location": "tech-spec.md Data Models, Decision 5; work/api-scraper/fixtures/usage.json"
+    },
+    {
+      "severity": "info",
+      "claim": "Task 1 references App/Tests/ClaudeCounterTests/Fixtures/*.json as new files and App/Package.swift to modify",
+      "reality": "Coherent. App/Package.swift exists; its ClaudeCounterTests target currently has no resources:, so adding .copy(\"Fixtures/...\") is a genuine modification. App/Tests/ClaudeCounterTests/Fixtures/ does not exist yet - correctly marked (new). The work/api-scraper/fixtures/*.json source-of-truth files in Files-to-read exist.",
+      "location": "tech-spec.md Task 1; App/Package.swift"
+    },
+    {
+      "severity": "info",
+      "claim": "All existing files in Files-to-read/modify exist; new files marked appropriately",
+      "reality": "Verified. Existing & confirmed: Models/ClaudeUsage.swift, Scraper/QuotaParser.swift, QuotaPayload.swift, WebViewFactory.swift, QuotaScraper.swift, QuotaScraper+Lifecycle/+Extract/+Navigation/+JS.swift, ScrapeDebugLog.swift, Logging/AppLog.swift, AppState.swift, ClaudeCounterApp.swift, App/Package.swift. New files (UsageAPIModels, UsageMapper, OrgIDStore, CookieBridge, UsageAPIClient) all marked (new) and absent from tree.",
+      "location": "tech-spec.md Implementation Tasks"
+    },
+    {
+      "severity": "info",
+      "claim": "WebKit APIs real; URLProtocol is real Foundation; Decision 6 premise that existing AppLog calls use privacy: .public",
+      "reality": "Verified. WKWebsiteDataStore.default() and customUserAgent used in WebViewFactory.swift; httpCookieStore is a real WKWebsiteDataStore property. URLProtocol is a real Foundation class. privacy: .public confirmed in 4 existing source files, validating Decision 6's premise. extractionJS / ScrapeDebugLog (Decision 4/6) confirmed in QuotaScraper+JS.swift and ScrapeDebugLog.swift.",
+      "location": "tech-spec.md Dependencies, Decision 6"
+    },
+    {
+      "severity": "low",
+      "claim": "Round-1 LOW (carried): UsageLimit.percent is Double; ClaudeUsage.currentPercent/weeklyPercent are Int?",
+      "reality": "Still accurate and non-blocking. The mapper (Task 2) must narrow Double->Int, the same Int($0) conversion existing QuotaParser already performs. No action required.",
+      "location": "tech-spec.md Data Models; ClaudeUsage.swift:6-8"
+    }
+  ]
+}
