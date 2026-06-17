@@ -1,6 +1,6 @@
 ---
 created: 2026-06-17
-status: draft
+status: approved
 branch: feature/api-scraper
 size: M
 ---
