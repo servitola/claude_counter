@@ -15,9 +15,12 @@ import WebKit
 ///
 /// Decision 7 backoff: a `.notLoggedIn` result sets `loggedOut`, which
 /// suppresses the WebView fallback on subsequent ticks (no login-WebView spam,
-/// preserves US-5 quiet-when-logged-out). The flag is cleared at the top of
-/// every `scrape()`, so the explicit re-probe entries — system wake, manual
-/// "Refresh Now", and usage-window open — each re-attempt the API for free.
+/// preserves US-5 quiet-when-logged-out). The flag PERSISTS across automatic
+/// 60 s ticks — the plain `scrape()` the `Timer` calls never clears it, so a
+/// logged-out + expired-cookie state can't relaunch the login WebView every
+/// minute. It is cleared only by `forceRefresh()` (wired to the three explicit
+/// triggers — system wake, "Refresh Now", usage-window open) or automatically
+/// by a `.success` result (user is clearly authed again).
 @MainActor
 final class QuotaScraper: NSObject {
     /// `claude.ai/settings/usage` is a constant; force-unwrap inside a
@@ -57,7 +60,8 @@ final class QuotaScraper: NSObject {
     /// Set by a `.notLoggedIn` API result (or by `/login` detection on the
     /// fallback path). While set, `runWebViewFallback()` returns immediately
     /// without building a WebView, so no login-WebView is spawned tick after
-    /// tick. Cleared at the top of every `scrape()`.
+    /// tick. PERSISTS across automatic ticks; cleared only by `forceRefresh()`
+    /// (explicit re-probe) or a `.success` result.
     var loggedOut = false
     /// Single-flight guard: only one orchestrator pass is in flight at a time,
     /// so overlapping timer/wake/Refresh/window-open triggers don't stack.
@@ -115,7 +119,8 @@ final class QuotaScraper: NSObject {
     /// interval to fire after wake — long enough that the displayed
     /// usage looks stale. Subscribe to `didWakeNotification` and force
     /// an immediate scrape so the menu-bar refreshes the moment the
-    /// user returns. The clear-at-top in `scrape()` re-probes the API.
+    /// user returns. `forceRefresh()` clears the Decision-7 backoff so a
+    /// logged-out state is re-probed (and the WebView fallback re-enabled).
     private func observeWake() {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
@@ -124,7 +129,7 @@ final class QuotaScraper: NSObject {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 AppLog.scraper.notice("System wake — forcing scrape")
-                self?.scrape()
+                self?.forceRefresh()
             }
         }
     }

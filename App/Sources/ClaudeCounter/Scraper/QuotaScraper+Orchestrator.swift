@@ -4,19 +4,17 @@ import WebKit
 // MARK: - API-first orchestration (Task 6)
 
 extension QuotaScraper {
-    /// One tick of the poller. API-first: clear the Decision-7 backoff, probe
-    /// the JSON API off-main, then apply the classified result on MainActor.
-    /// Synchronous entry (launches a Task internally) so the existing callers —
-    /// the 60 s timer, the wake observer, "Refresh Now", and the window-open
-    /// re-probe — keep compiling unchanged.
+    /// One automatic tick of the poller. API-first: probe the JSON API off-main,
+    /// then apply the classified result on MainActor. This is the path the 60 s
+    /// `Timer` and the `handleFailure()` retry take, so it must NOT clear the
+    /// Decision-7 `loggedOut` backoff — clearing it every tick would defeat the
+    /// suppression and re-spin the WebView fallback while logged out. The cheap
+    /// HTTP probe still runs each tick (no WebView), so a re-login is noticed
+    /// via a later `.success`.
+    ///
+    /// Synchronous entry (launches a Task internally) so the existing automatic
+    /// callers keep compiling unchanged.
     func scrape() {
-        // Clear-at-top: ANY explicit re-probe that routes through scrape()
-        // (wake, Refresh Now, window open) resets the backoff and re-attempts
-        // the API. Suppression is enforced inside `runWebViewFallback()`, so the
-        // flag can only suppress a fallback set earlier in THIS pass (or by
-        // `/login` detection on a prior fallback).
-        loggedOut = false
-
         // Single-flight: overlapping triggers become no-ops until the in-flight
         // fetch resolves.
         guard !isFetchingNow else { return }
@@ -32,12 +30,26 @@ extension QuotaScraper {
         }
     }
 
+    /// The single explicit re-probe entry point. Clears the Decision-7
+    /// `loggedOut` backoff, then runs a normal `scrape()`. Wired to the three
+    /// explicit user/system triggers — system wake (`observeWake()`), "Refresh
+    /// Now" (`refresh()`), and usage-window open (`openWindow()`) — so a fresh
+    /// full attempt (including the WebView fallback) becomes possible again.
+    /// The automatic `Timer` deliberately does NOT route through here.
+    func forceRefresh() {
+        loggedOut = false
+        scrape()
+    }
+
     /// Apply a classified API result on MainActor.
     private func apply(_ result: UsageFetchResult) {
         switch result {
         case .success(let usage):
-            // Normal tick: push to AppState, NO WebView. Keep backoff cleared,
-            // reset the fallback retry counter.
+            // Normal tick: push to AppState, NO WebView. A success means the
+            // user is clearly authed again, so clear the Decision-7 backoff
+            // (this is the only automatic path that clears it — a re-login is
+            // noticed even without an explicit re-probe). Reset the fallback
+            // retry counter.
             appStateRef()?.usage = usage
             loggedOut = false
             retryCount = 0
