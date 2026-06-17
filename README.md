@@ -14,8 +14,9 @@ Click the indicator → menu with **Open Usage Page**, **Launch at Login**,
 embedded in the app, so you log in once and it stays logged in across
 reboots.
 
-Idle footprint is **~76 MB** (yes, really — see [AGENTS.md](AGENTS.md)
-for how). No telemetry, no analytics, all scraping happens locally.
+Idle footprint is **~14 MB** (Activity Monitor "Memory" column — see
+[AGENTS.md](AGENTS.md) for how). No telemetry, no analytics, all data
+fetched locally straight from Claude.ai.
 
 ---
 
@@ -72,26 +73,32 @@ make purge        # uninstall + delete cookies and preferences too
   Open the Usage Page from the menu and log in again.
 - **Bar shows nothing at all** — `pgrep -lf ClaudeCounter` to check
   if it's running. `make update` to reinstall.
-- **Want to see what was scraped?** — `cat /tmp/claude_counter_debug.txt`
-  shows the last extraction (percentages, raw text, regex matches).
+- **Want to see what the fallback scraped?** —
+  `cat ~/Library/Logs/ClaudeCounter/scrape-debug.txt` shows the last DOM
+  extraction (only written when the WebView fallback runs).
 
 ## How it works (the short version)
 
-1. Every 60 seconds a tiny hidden WebView spawns, loads
-   `claude.ai/settings/usage`, runs an extraction script, dies.
-2. The script reads `aria-label`s and text nodes from the React DOM
-   (claude.ai is a heavy SPA; `body.innerText` is empty).
-3. Results land in `AppState`; the menu-bar title re-renders.
-4. Cookies live in a shared `WKWebsiteDataStore` so login persists
-   between scrapes and across app restarts.
+1. Every 60 seconds the app makes a direct HTTPS request (via
+   `URLSession`) to Claude.ai's usage API, reusing your logged-in
+   cookies. No browser is launched.
+2. The JSON response (current 5h window, weekly %, reset timestamps)
+   lands in `AppState`; the menu-bar title re-renders.
+3. Cookies live in a shared `WKWebsiteDataStore` (written by the login
+   window), so the session persists across app restarts.
+4. **Fallback:** if the request hits a Cloudflare challenge (expired
+   clearance) or an unexpected response, a hidden WebView spins up once
+   to refresh the session / DOM-scrape, then the API path resumes. When
+   logged out, the app waits quietly instead of retrying every minute.
 
 The longer version, plus all the architecture, conventions, and
 build pipeline notes, is in [AGENTS.md](AGENTS.md).
 
 ## Privacy
 
-- All scraping happens locally in your machine's WebKit.
-- Cookies stored in `~/Library/WebKit/com.servitola.claudecounter/`
-  and nowhere else.
-- No outbound traffic except to `claude.ai`.
+- All requests go straight from your machine to `claude.ai` — nowhere else.
+- Session cookies stay in `~/Library/WebKit/com.servitola.claudecounter/`
+  and are sent only to `claude.ai` (stripped on any off-host redirect);
+  they are never logged.
+- No telemetry, no analytics, no outbound traffic except to `claude.ai`.
 - Source is 100% open in this repository.
