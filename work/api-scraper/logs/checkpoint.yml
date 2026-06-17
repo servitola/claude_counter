@@ -5,7 +5,7 @@ feature_dir: work/api-scraper
 execution_plan: work/api-scraper/logs/execution-plan.md
 team_name: api-scraper
 
-last_completed_wave: 5
+last_completed_wave: 6
 total_waves: 6
 
 tasks:
@@ -18,6 +18,6 @@ tasks:
   7: done
   8: done
   9: done
-  10: planned
+  10: done
 
-next_wave: 6
+next_wave: 7

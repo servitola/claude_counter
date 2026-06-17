@@ -311,3 +311,29 @@ non-persistent cookie stores. Baseline green (97 tests, 14 suites). 0
 critical/high/medium, 3 LOW polish items only; no fix cycle required.
 **Report:** logs/working/task-9/audit-report.md
 **Deviations:** none (analysis-only task; no code/test modified).
+
+---
+
+## Task 10: Pre-deploy QA
+
+**Status:** Done
+**Agent:** qa-runner
+**Summary:** Acceptance gate passed. `make ci` fully green (format-check, lint
+--strict, test, dead-code --strict), exit 0; **100 tests in 14 suites, 0
+failures** (confirmed identical via standalone `cd App && swift test`).
+`make build` / `swift build` → clean (runnable product). `App/Package.swift`
+has **zero** external `.package(...)` deps (only Fixtures resources). Both
+secret-log guard tests present and green (`UsageAPIClientTests/noCookieValueInLogs`,
+`CookieBridgeTests/noCookieValueAppearsInCapturedLogSink`). Every automatable
+acceptance criterion (US-1…US-6, tech-spec AC-1…AC-9) is PASS with a
+behavior-asserting test cited; **zero findings, zero blockers**.
+**Verdict:** READY for user (post-deploy) verification.
+**Deferred to post-deploy:** the live-environment checks (logged-in menu-bar
+parity with claude.ai, Activity Monitor RSS < ~82 MB with no per-tick
+WebContent/GPU helpers, real 403→WebView-refresh→API-resume, logout
+backoff/login resume) are Cloudflare-gated / Activity-Monitor-only and
+non-deterministic in CI — DEFERRED with exact manual steps in the report.
+**Deviations:** none (QA task; nothing modified).
+
+**Verification:**
+- Full report: [logs/working/task-10/qa-report.md](logs/working/task-10/qa-report.md)
