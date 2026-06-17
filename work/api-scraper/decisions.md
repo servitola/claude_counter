@@ -109,3 +109,37 @@ the explicitly-allowed mechanisms in the task.)
 
 **Verification:**
 - `cd App && swift test` → 65 tests pass, `make ci` → clean, exit 0
+
+---
+
+## Task 2: limits[] → ClaudeUsage mapper
+
+**Status:** Done
+**Commit:** c0dfd0b
+**Agent:** mapper-coder
+**Summary:** Added `App/Sources/ClaudeCounter/Scraper/UsageMapper.swift` — a pure,
+Sendable `enum` with `static func map(_ response: UsageResponse, now: Date = Date())
+-> ClaudeUsage?` mirroring `QuotaParser`'s shape. Current ← `limits[]` entry with
+`kind == "session"` (else flat `fiveHour`); weekly ← entry with `kind == "weekly_all"`,
+never `weekly_scoped` (else flat `sevenDay`). `percent`/`utilization` `Double`→`Int`
+by truncation (`Int(2.9) == 2`); `resetsAt` passed straight through as the
+already-parsed `Date`; `updatedAt = now`. Returns `nil` only when neither `limits[]`
+nor a flat fallback yields any current or weekly value. Reuses Task 1's
+`UsageResponse`/`UsageLimit`/`FlatWindow` unchanged.
+**Deviations:** Test method names lost their `test_` prefix (anchors became
+`maps_session_to_current_and_weekly_all_to_weekly`, etc.) — SwiftFormat's
+`swiftTestingTestCaseNames` rule (enforced by `make ci`) strips the redundant
+`test` prefix from `@Test` functions; the rest of each anchor name is preserved
+verbatim. Behavior matches the spec exactly.
+
+**Reviews:**
+
+*Round 1:*
+- code-reviewer: approved (2 minor) → logs/working/task-2/code-reviewer-round1.json
+- test-reviewer: changes_requested (HIGH fiveHour fallback untested; MED resetsAt nil) → logs/working/task-2/test-reviewer-round1.json
+
+*Round 2 (after fix 4f12351):*
+- Added fiveHour-fallback + resetsAt-nil-passthrough tests (TDD litmus confirmed both). 72 tests, make ci clean.
+
+**Verification:**
+- `cd App && swift test` → 72 tests pass · `make ci` → clean, exit 0
