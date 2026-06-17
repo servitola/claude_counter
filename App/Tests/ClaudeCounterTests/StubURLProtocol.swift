@@ -52,6 +52,22 @@ final class StubURLProtocol: URLProtocol {
 
         static func ok(
             path: String,
+            headers: [String: String],
+            body: Data
+        )
+            -> Self
+        {
+            var merged = headers
+            merged["Content-Type"] = merged["Content-Type"] ?? "application/json"
+            return Self(
+                match: { ($0.url?.path).map { $0.hasSuffix(path) } ?? false },
+                kind: .response(status: 200, headers: merged, body: body),
+                onHit: nil
+            )
+        }
+
+        static func ok(
+            path: String,
             matchHost: Bool,
             body: Data
         )

@@ -47,6 +47,17 @@ enum UsageAPIClientFixtures {
         return try Data(contentsOf: url)
     }
 
+    /// Parse an ISO-8601 timestamp with fractional seconds, mirroring the
+    /// decoder under test so tests can assert EXACT reset Dates.
+    static func iso(_ string: String) -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = formatter.date(from: string) else {
+            fatalError("invalid ISO-8601 fixture timestamp: \(string)")
+        }
+        return date
+    }
+
     /// Two-org inline fixture: first org inactive; pick must be deterministic.
     static let twoOrgJSON = """
     [

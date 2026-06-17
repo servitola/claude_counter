@@ -64,9 +64,11 @@ struct UsageAPIClient {
     static let host = "claude.ai"
 
     private let session: URLSession
-    private let orgStore: OrgIDStore
-    private let cookies: CookieSource
-    private let log: @Sendable (String) -> Void
+    // Accessed by the `UsageResponseClassifier` extension (separate file), so
+    // these are module-internal rather than `private`.
+    let orgStore: OrgIDStore
+    let cookies: CookieSource
+    let log: @Sendable (String) -> Void
 
     /// `configuration` is injectable so tests register a stub `URLProtocol`;
     /// `cookies` is the read + write-back seam; `log` is a value-free sink.
@@ -132,11 +134,9 @@ private extension UsageAPIClient {
     /// active/first uuid, and cache it. Auth/empty failures invalidate the
     /// cache so the next tick re-discovers.
     func resolveOrgUUID() async -> OrgResolution {
-        if let cached = orgStore.read() {
-            log("org uuid cache hit")
+        if let cached = cachedUUID() {
             return .resolved(cached)
         }
-        log("org uuid cache miss")
 
         guard let url = URL(string: "https://\(Self.host)/api/organizations") else {
             return .failed(.decodeFailed)
@@ -165,10 +165,11 @@ private extension UsageAPIClient {
 
         guard
             let orgs = try? UsageAPIModels.decoder.decode([OrgSummary].self, from: data),
-            let uuid = pickOrg(from: orgs)
+            let uuid = pickOrg(from: orgs),
+            Self.isValidUUID(uuid)
         else {
             orgStore.invalidate()
-            log("org discovery empty or undecodable")
+            log("org discovery empty, undecodable, or non-uuid")
             return .failed(.decodeFailed)
         }
 
@@ -177,72 +178,35 @@ private extension UsageAPIClient {
         return .resolved(uuid)
     }
 
+    /// Return the cached uuid only when it is present AND well-formed. A
+    /// poisoned (non-UUID) cache entry is invalidated and treated as a miss, so
+    /// discovery re-runs. `nil` means "no usable cache — discover".
+    func cachedUUID() -> String? {
+        guard let cached = orgStore.read() else {
+            log("org uuid cache miss")
+            return nil
+        }
+        if Self.isValidUUID(cached) {
+            log("org uuid cache hit")
+            return cached
+        }
+        orgStore.invalidate()
+        log("org uuid cache invalid; re-discovering")
+        return nil
+    }
+
     /// Pick the org uuid: the first one. The API returns the active org first
     /// and `OrgSummary` has no active flag, so "first" is the deterministic pick.
     func pickOrg(from orgs: [OrgSummary]) -> String? {
         orgs.first?.uuid
     }
-}
 
-private extension UsageAPIClient {
-    /// Classify a `/usage` response. The challenge check and all auth checks
-    /// (401, /login redirect, login HTML body) run BEFORE any JSON decode.
-    func classifyUsage(data: Data, response: HTTPURLResponse) async -> UsageFetchResult {
-        if response.statusCode == 403, isChallenge(data: data, response: response) {
-            log("usage classified=needsCookieRefresh status=403")
-            // Cache stays — the uuid is still valid; only cookies are stale.
-            return .needsCookieRefresh
-        }
-
-        if let authResult = authResult(for: data, response: response) {
-            orgStore.invalidate()
-            log("usage classified=notLoggedIn status=\(response.statusCode)")
-            return authResult
-        }
-
-        guard response.statusCode == 200 else {
-            log("usage non-200 status=\(response.statusCode)")
-            return .decodeFailed
-        }
-
-        guard
-            let decoded = try? UsageAPIModels.decoder.decode(UsageResponse.self, from: data),
-            let usage = UsageMapper.map(decoded)
-        else {
-            log("usage classified=decodeFailed status=200")
-            return .decodeFailed
-        }
-
-        await writeBackCookies(from: response)
-        log("usage classified=success status=200")
-        return .success(usage)
-    }
-
-    /// `.notLoggedIn` for 401, a `/login`-path response (after a redirect), or
-    /// an HTML login-page body. `nil` when none apply.
-    func authResult(for data: Data, response: HTTPURLResponse) -> UsageFetchResult? {
-        if response.statusCode == 401 { return .notLoggedIn }
-        if response.url?.path.contains("/login") == true { return .notLoggedIn }
-        if isHTML(response), isLoginPage(data: data) { return .notLoggedIn }
-        return nil
-    }
-
-    func isHTML(_ response: HTTPURLResponse) -> Bool {
-        let type = response.value(forHTTPHeaderField: "Content-Type")?.lowercased() ?? ""
-        return type.contains("text/html")
-    }
-
-    func isLoginPage(data: Data) -> Bool {
-        guard let body = String(data: data, encoding: .utf8)?.lowercased() else { return false }
-        return body.contains("log in to claude")
-            || body.contains("action=\"/login\"")
-            || body.contains("/login")
-    }
-
-    func isChallenge(data: Data, response: HTTPURLResponse) -> Bool {
-        guard isHTML(response) else { return false }
-        guard let body = String(data: data, encoding: .utf8)?.lowercased() else { return false }
-        return body.contains("just a moment") || body.contains("checking your browser")
+    /// Defense in depth: the uuid is interpolated raw into the `/usage` path, so
+    /// reject anything that is not a well-formed UUID before it reaches the URL.
+    /// A non-UUID is treated as a discovery failure (the cache is already
+    /// invalidated by the caller), so the next tick re-discovers.
+    static func isValidUUID(_ value: String) -> Bool {
+        UUID(uuidString: value) != nil
     }
 }
 
@@ -268,7 +232,11 @@ private extension UsageAPIClient {
         }
         return (data, http)
     }
+}
 
+/// Internal (not `private`) so the `UsageResponseClassifier` extension in its own
+/// file can trigger write-back after a successful decode.
+extension UsageAPIClient {
     func writeBackCookies(from response: HTTPURLResponse) async {
         guard let url = response.url else { return }
         let setCookies = setCookieFields(from: response)
@@ -276,25 +244,19 @@ private extension UsageAPIClient {
         await cookies.writeBack(setCookies, url)
     }
 
-    /// Extract `Set-Cookie` field values. `allHeaderFields` folds repeats into
-    /// one comma-joined string, so re-emit one field per parsed cookie for
-    /// CookieBridge's RFC-6265 comma-safe path; else the raw folded value.
+    /// Forward the RAW `Set-Cookie` header value(s) to `CookieBridge` WITHOUT
+    /// reconstruction, preserving `Secure`/`HttpOnly`/`Expires` and every other
+    /// attribute. Foundation folds repeated `Set-Cookie` headers into a single
+    /// comma-joined `allHeaderFields["Set-Cookie"]`; URLSession exposes no
+    /// unfolded per-field accessor here, so the least-lossy path is to pass that
+    /// raw folded value straight through as a single element. `CookieBridge`
+    /// then parses it via `HTTPCookie.cookies(withResponseHeaderFields:)` (which
+    /// handles the RFC-6265 comma hazard) and keeps only claude.ai-scoped jar
+    /// entries.
     func setCookieFields(from response: HTTPURLResponse) -> [String] {
-        if let url = response.url {
-            let fields = response.allHeaderFields.reduce(into: [String: String]()) { acc, pair in
-                if let key = pair.key as? String, let value = pair.value as? String {
-                    acc[key] = value
-                }
-            }
-            let cookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: url)
-            if !cookies.isEmpty {
-                return cookies
-                    .map { "\($0.name)=\($0.value); Domain=\($0.domain); Path=\($0.path)" }
-            }
+        guard let raw = response.value(forHTTPHeaderField: "Set-Cookie"), !raw.isEmpty else {
+            return []
         }
-        if let raw = response.value(forHTTPHeaderField: "Set-Cookie") {
-            return [raw]
-        }
-        return []
+        return [raw]
     }
 }

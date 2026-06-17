@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import WebKit
 @testable import ClaudeCounter
 
 // MARK: - Core fetch / discovery / transport / redirect / log tests
@@ -30,10 +31,65 @@ extension UsageAPIClientTests {
             Issue.record("Expected .success, got \(result)")
             return
         }
+        // Exact values from usage.json: a current/weekly swap or a
+        // weekly_all-vs-weekly_scoped mismap would change these.
         #expect(claudeUsage.currentPercent == 3)
         #expect(claudeUsage.weeklyPercent == 51)
-        #expect(claudeUsage.currentResetAt != nil)
-        #expect(claudeUsage.weeklyResetAt != nil)
+        #expect(claudeUsage.currentResetAt == UsageAPIClientFixtures
+            .iso("2026-06-17T13:49:59.900458+00:00"))
+        #expect(claudeUsage.weeklyResetAt == UsageAPIClientFixtures
+            .iso("2026-06-17T18:59:59.900484+00:00"))
+    }
+
+    // MARK: - Cookie write-back (end to end)
+
+    /// A 200 `/usage` carrying a rotating `Set-Cookie` for claude.ai must land
+    /// in the WebView cookie store via the real `CookieBridge`. Litmus: removing
+    /// the `writeBackCookies` call in `UsageAPIClient` breaks this test.
+    @MainActor
+    @Test func successWritesRotatingCookieBackToStore() async throws {
+        let isolated = try IsolatedStore()
+        defer { isolated.tearDown() }
+
+        let webStore = WKWebsiteDataStore.nonPersistent()
+        let bridge = CookieBridge(store: webStore)
+
+        let orgs = try UsageAPIClientFixtures.data("organizations")
+        let usage = try UsageAPIClientFixtures.data("usage")
+        let client = makeStubbedClient(
+            routes: [
+                .ok(path: "/api/organizations", body: orgs),
+                .ok(
+                    path: "/usage",
+                    headers: [
+                        "Set-Cookie":
+                            "__cf_bm=rotated-from-api; Path=/; Domain=claude.ai; "
+                            + "Expires=Wed, 09 Jun 2027 10:18:14 GMT; Secure; HttpOnly"
+                    ],
+                    body: usage
+                )
+            ],
+            store: isolated.store,
+            // swiftlint:disable:next trailing_closure
+            writeBack: { headers, url in
+                await bridge.writeBack(setCookieHeaders: headers, responseURL: url)
+            }
+        )
+        defer { StubURLProtocol.reset() }
+
+        let result = await client.fetch()
+        guard case .success = result else {
+            Issue.record("Expected .success, got \(result)")
+            return
+        }
+
+        let cookies = await webStore.httpCookieStore.allCookies()
+        let match = cookies.first { $0.name == "__cf_bm" }
+        #expect(match?.value == "rotated-from-api")
+        // Secure/HttpOnly survive because the raw Set-Cookie is forwarded
+        // without lossy name=value;Domain;Path reconstruction.
+        #expect(match?.isSecure == true)
+        #expect(match?.isHTTPOnly == true)
     }
 
     // MARK: - Discovery / caching
@@ -63,7 +119,7 @@ extension UsageAPIClientTests {
         #expect(counter.value == 1)
     }
 
-    @Test func multiOrgPicksActiveOrFirst() async throws {
+    @Test func multiOrgPicksFirst() async throws {
         let isolated = try IsolatedStore()
         defer { isolated.tearDown() }
 
@@ -87,6 +143,35 @@ extension UsageAPIClientTests {
         }
         // First uuid is the deterministic pick when no active flag is present.
         #expect(isolated.store.read() == "00000000-0000-4000-8000-0000000000AA")
+    }
+
+    // MARK: - UUID guard
+
+    /// A discovered org "uuid" that is not a well-formed UUID must fail
+    /// discovery (and invalidate the cache) rather than be interpolated raw
+    /// into the `/usage` path.
+    @Test func nonUUIDOrgFailsDiscovery() async throws {
+        let isolated = try IsolatedStore()
+        defer { isolated.tearDown() }
+
+        let usage = try UsageAPIClientFixtures.data("usage")
+        let malicious = #"[{ "uuid": "../../etc/passwd" }]"#
+        let client = makeStubbedClient(
+            routes: [
+                .ok(path: "/api/organizations", body: Data(malicious.utf8)),
+                .ok(path: "/usage", body: usage)
+            ],
+            store: isolated.store
+        )
+        defer { StubURLProtocol.reset() }
+
+        let result = await client.fetch()
+        guard case .decodeFailed = result else {
+            Issue.record("Expected .decodeFailed, got \(result)")
+            return
+        }
+        // Cache must be invalidated so the next tick re-discovers.
+        #expect(isolated.store.read() == nil)
     }
 
     // MARK: - Transport
