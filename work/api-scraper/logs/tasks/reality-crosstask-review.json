@@ -1,0 +1,111 @@
+{
+  "validator": "reality-checker",
+  "mode": "cross-task",
+  "batch": "cross-task",
+  "iteration": 1,
+  "tasks_checked": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "verdict": "approved",
+  "findings": [
+    {
+      "severity": "major",
+      "category": "cross-task-integration",
+      "task": 5,
+      "issue": "UsageFetchResult enum ownership is ambiguous. Task 5 says 'Confirm whether Task 1/2 already declared it; if so, reuse — do not duplicate. Otherwise declare it here.' Neither Task 1 nor Task 2 declares UsageFetchResult in their descriptions, What-to-do, or Details sections. Task 1 owns UsageAPIModels (OrgSummary, UsageResponse, UsageLimit, FlatWindow) and Task 2 owns UsageMapper. No task explicitly designates UsageFetchResult to a specific owner before Task 5. This creates a risk: the implementer of Task 5 must reason about a non-existent file (UsageAPIModels.swift does not yet exist) to decide where to put a shared type, and Task 6 depends on UsageFetchResult being importable — but the owning file is unspecified.",
+      "fix": "Explicitly state in Task 5 Details that UsageFetchResult is declared in UsageAPIClient.swift (Task 5), since Tasks 1 and 2 do not declare it. Update the conditional phrasing in Task 5 ('Confirm whether Task 1/2 already declared it') to a definitive 'Declare it in this file' since inspection confirms Tasks 1 and 2 do not own it."
+    },
+    {
+      "severity": "minor",
+      "category": "cross-task-integration",
+      "task": 5,
+      "issue": "Task 5's wave label says 'wave: 3' but all Wave-1 tasks (T1, T2, T3, T4) and the tech-spec wave table show T4 (CookieBridge) promoted to Wave 1. Task 5 depends_on [1,2,3,4] and is correctly listed as wave 3 in the tech-spec. However the tech-spec Wave structure says Wave 1: T1,T3,T4; Wave 2: T2; Wave 3: T5; Wave 4: T6 — but T2 has depends_on: [1] yet is labeled wave: 2 in its own file. T5 has depends_on: [1,2,3,4] and wave: 3. The numbering is internally consistent per each task file. No actual execution-order or dependency violation exists, but the wave labels are offset from the tech-spec's original Wave 1 / Wave 2 / Wave 3 labeling (tech-spec says Wave 2 = T4, Wave 1 = T1/T2/T3). This is cosmetic only — no functional impact.",
+      "fix": "Minor label inconsistency. No code change needed; optionally align the tech-spec's Wave table to match the final per-task wave numbers (T4 promoted to Wave 1 is already noted in its task file)."
+    },
+    {
+      "severity": "minor",
+      "category": "cross-task-integration",
+      "task": 2,
+      "issue": "Task 2 has depends_on: [1] but its wave is labeled wave: 2. Meanwhile Task 4 (CookieBridge) has depends_on: [] and wave: 1. The tech-spec originally placed T4 in Wave 2 and T2 as part of Wave 1 ('Task 2: limits[] → ClaudeUsage mapper' listed under 'Wave 1'). After promotion of T4 to Wave 1 and T2 remaining depends_on [1], T2 is now effectively Wave 2 (must run after T1). The task file says wave: 2, which is correct for execution ordering. No dependency violation — this is label drift from the tech-spec's original wave grouping, already documented in T4's note.",
+      "fix": "Cosmetic only. Tech-spec's Implementation Tasks section should be updated to list T2 under Wave 2 and T4 under Wave 1, matching the task files. No code impact."
+    }
+  ],
+  "cross_task_checks": {
+    "duplicate_heavy_resource_init": {
+      "status": "PASS",
+      "notes": [
+        "URLSession is owned exclusively by UsageAPIClient (Task 5). No other task instantiates or declares a URLSession.",
+        "WKWebsiteDataStore.default() cookie store is a system singleton — CookieBridge (T4) reads/writes it, the existing WebView fallback reads/writes it. No task creates a second instance. Shared-resource table in tech-spec correctly reflects 1 instance.",
+        "OrgIDStore (UserDefaults) is owned by Task 3 and consumed only by Task 5. No other task declares a UserDefaults-backed uuid cache.",
+        "UsageAPIModels types (UsageResponse, UsageLimit, FlatWindow, OrgSummary) are declared once in Task 1. Task 2 explicitly states 'Reuse — do NOT redefine' with a full list of prohibited re-declarations. Task 5 repeats the same prohibition. No cross-task type duplication."
+      ]
+    },
+    "hidden_dependencies": {
+      "status": "PASS",
+      "notes": [
+        "T2 uses T1 types (UsageResponse, UsageLimit, FlatWindow) and correctly declares depends_on: [1].",
+        "T5 uses T1 (UsageAPIModels), T2 (UsageMapper), T3 (OrgIDStore), T4 (CookieBridge) and correctly declares depends_on: [1,2,3,4].",
+        "T6 uses T5 (UsageAPIClient + UsageFetchResult) and correctly declares depends_on: [5].",
+        "T7, T8, T9 all declare depends_on: [6] (audit after all implementation). T7 reads Tasks 1-6 output but produces no code, so no hidden code dependency risk.",
+        "T10 declares depends_on: [7,8,9], which transitively covers all implementation tasks. Correct.",
+        "T4 (CookieBridge) is consumed by T5 but T4 has no depends_on — correctly Wave 1 because it only uses WebKit system APIs, not any of T1-T3's types."
+      ]
+    },
+    "decision_2_cookie_model_consistency": {
+      "status": "PASS",
+      "notes": [
+        "T4 (CookieBridge): Describes no-cookie-jar URLSession and WebView store as single source of truth. Read + write-back both present. Host scoping (claude.ai only, leading-dot and bare form). MainActor async read before off-main request build. Fully consistent with Decision 2.",
+        "T5 (UsageAPIClient): Explicitly sets httpCookieStorage=nil, httpCookieAcceptPolicy=.never, httpShouldSetCookies=false. Off-host redirect delegate strips Cookie header. CookieBridge called for read (outgoing) and write-back (Set-Cookie on success). Fully consistent with Decision 2.",
+        "T6 (QuotaScraper): Does not touch cookie handling directly — delegates entirely to UsageAPIClient/CookieBridge. No contradiction of Decision 2.",
+        "All three tasks agree: WebView store is the single source of truth; URLSession carries no cookie jar of its own; Set-Cookie written back via CookieBridge. No drift detected."
+      ]
+    },
+    "logging_policy_decision_6": {
+      "status": "PASS",
+      "notes": [
+        "T4: 'no cookie name or value is ever logged; only counts and host may appear; privacy: .private on token-adjacent fields'. Provides injectable log seam for test capture.",
+        "T5: 'cookie values and request headers are NEVER logged; log only value-free events; any token-adjacent field uses privacy: .private'. Calls out the existing privacy: .public pattern as prohibited for cookie/header data.",
+        "T6: 'every new log line is value-free — result case name, status-like events only; never log cookie values, headers, or tokens'.",
+        "T7 (Code Audit) and T8 (Security Audit) both include Decision 6 verification as explicit acceptance criteria.",
+        "T10 (QA) verifies the secret-log guard integration test is present and green.",
+        "Policy is consistent and redundantly reinforced across all tasks that touch logging."
+      ]
+    },
+    "date_strategy_consistency": {
+      "status": "PASS",
+      "notes": [
+        "T1 owns the two-formatter ISO-8601 strategy (withFractionalSeconds first, then without). Declared in UsageAPIModels.swift as a shared JSONDecoder/dateDecodingStrategy.",
+        "T2 explicitly states 'resetsAt is already a parsed Date (Task 1's decoder handled ISO-8601); assign it straight through — no minutes math, no re-parsing'.",
+        "T5 uses UsageAPIModels decoder (Task 1) for all JSON decode. No second date formatter introduced.",
+        "No task re-implements date parsing. Single consistent approach throughout."
+      ]
+    },
+    "test_idiom_consistency": {
+      "status": "PASS",
+      "notes": [
+        "All implementation tasks (T1, T2, T3, T4, T5, T6) specify Swift Testing framework (@Test/#expect), matching existing QuotaParserTests.swift idiom.",
+        "T3 explicitly cites 'import Testing, @Test, #expect — match QuotaParserTests.swift'.",
+        "T6 TDD anchor specifies 'observable end state, not spy assertions' — consistent with tech-spec integration test requirements.",
+        "T9 (Test Audit) uses the same existing tests as idiom reference and audits for compliance. No inconsistency."
+      ]
+    },
+    "wave_and_execution_order": {
+      "status": "PASS",
+      "notes": [
+        "Wave 1 (independent): T1 (depends_on:[]), T3 (depends_on:[]), T4 (depends_on:[]). Can run in parallel.",
+        "Wave 2 (after T1): T2 (depends_on:[1]). Correctly cannot run until T1 delivers UsageAPIModels.",
+        "Wave 3 (after T1+T2+T3+T4): T5 (depends_on:[1,2,3,4]). No cycle.",
+        "Wave 4 (after T5): T6 (depends_on:[5]). No cycle.",
+        "Wave 5 (after T6): T7, T8, T9 (all depends_on:[6]). Audit wave, parallel. No cycle.",
+        "Wave 6 (after T7+T8+T9): T10 (depends_on:[7,8,9]). Final QA gate.",
+        "No circular dependencies detected in the full task graph."
+      ]
+    }
+  },
+  "stats": {
+    "tasks_checked": 10,
+    "claims_verified": 31,
+    "issues_found": 3,
+    "critical": 0,
+    "major": 1,
+    "minor": 2
+  }
+}

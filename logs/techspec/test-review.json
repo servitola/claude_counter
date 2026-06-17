@@ -1,0 +1,55 @@
+{
+  "verdict": "pass",
+  "status": "passed",
+  "summary": "Round-3 confirm. All four open round-2 items (multi-org pick, percent Double->Int truncation, inline degenerate-body fixtures, observable backoff) are now present and behaviorally specified in the Testing Strategy. No remaining HIGH/MED gaps. Coverage maps cleanly to all decisions, US requirements, and acceptance criteria. Adequate for size M. One residual LOW note (Decision 6 log-secrecy has no behavioral test, delegated to Task 8 security audit) is non-blocking.",
+  "round2_items_verified": [
+    {
+      "item": "Multi-org pick: two-org fixture variant asserting active/first uuid chosen + cached",
+      "present": true,
+      "location": "tech-spec.md:288-289 (Testing Strategy > Unit tests)",
+      "note": "Now an explicit unit-test line: '/organizations returns multiple orgs (add a two-org fixture variant; assert the active/first is chosen and cached).' Fixture variant + selection rule + caching all specified. RESOLVED."
+    },
+    {
+      "item": "percent Double->Int rounding (2.9 -> 2)",
+      "present": true,
+      "location": "tech-spec.md:290-292 (Testing Strategy > Unit tests)",
+      "note": "Explicit line: 'percent rounding: Double -> Int for ClaudeUsage truncates as expected for fractional values (e.g. 2.9 -> 2), matching existing QuotaParser behavior.' Conversion is now pinned to truncation with a concrete example. RESOLVED."
+    },
+    {
+      "item": "Degenerate bodies pinned as small inline string fixtures",
+      "present": true,
+      "location": "tech-spec.md:278-281 (Testing Strategy > Unit tests, HTTP classification)",
+      "note": "Explicit line: 'The degenerate bodies (Cloudflare \"Just a moment...\" HTML, login-page HTML, garbage JSON) are pinned as small inline string fixtures in the test so classification is deterministic.' All three negative bodies + inline source + determinism stated. RESOLVED."
+    },
+    {
+      "item": "Backoff asserts an observable, cleared on wake/window-open",
+      "present": true,
+      "location": "tech-spec.md:306-308 (Testing Strategy > Integration tests)",
+      "note": "Explicit line: 'assert an observable (WebView never instantiated / fallback-invocation counter stays 0 across N ticks while logged-out), then a wake/window-open event clears the flag and re-probes.' End-state observable, not a spy-on-call. RESOLVED."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "missing_coverage",
+      "location": "Section: Testing Strategy / Decision 6 (secrets never logged)",
+      "issue": "Decision 6 plus an acceptance criterion require that no cookie value or request header is ever written to logs, but the Testing Strategy has no behavioral test for it; the concern is delegated entirely to the security audit (Task 8). This is a defensible allocation for size M, but a one-time audit pass is weaker than a permanent regression guard.",
+      "recommendation": "Optional, non-blocking: add a unit test that injects sentinel sessionKey/cf_clearance values, drives a fetch + Set-Cookie write-back + a .decodeFailed repro dump through a captured AppLog sink, and asserts the captured output contains neither the sentinel values nor a 'Cookie:' header substring."
+    }
+  ],
+  "metrics": {
+    "filesReviewed": 2,
+    "coverageAssessment": "adequate",
+    "litmusTest": {
+      "checked": 13,
+      "passed": 13,
+      "failed": 0
+    },
+    "pyramidBalance": {
+      "unit": 9,
+      "integration": 4,
+      "e2e": 0,
+      "assessment": "healthy"
+    }
+  }
+}

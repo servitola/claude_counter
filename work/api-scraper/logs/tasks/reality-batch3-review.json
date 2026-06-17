@@ -1,0 +1,83 @@
+{
+  "validator": "reality-checker",
+  "batch": [7, 8, 9],
+  "iteration": 1,
+  "status": "approved",
+  "verdict": "approved",
+  "tasks": [
+    {
+      "task": 7,
+      "issues": []
+    },
+    {
+      "task": 8,
+      "issues": []
+    },
+    {
+      "task": 9,
+      "issues": []
+    }
+  ],
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "missing_file",
+      "task": 7,
+      "issue": "decisions.md listed in Context Files does not yet exist (work/api-scraper/decisions.md). The task text says 'read if present', but the context-file list presents it without a qualifier.",
+      "fix": "Already acceptable — the task body says 'if present' in the Details section. No change required; the auditor will simply skip it. Pre-existing acknowledgement in the prompt is sufficient."
+    },
+    {
+      "severity": "minor",
+      "category": "missing_file",
+      "task": 8,
+      "issue": "decisions.md listed in Context Files does not yet exist (work/api-scraper/decisions.md). Same note as Task 7 — the inline qualifier 'read if present' covers this.",
+      "fix": "No action needed. The task body's Details section and inline qualifier handle this gracefully."
+    },
+    {
+      "severity": "minor",
+      "category": "missing_file",
+      "task": 9,
+      "issue": "decisions.md listed in Context Files does not yet exist. Same as Tasks 7 and 8.",
+      "fix": "No action needed."
+    },
+    {
+      "severity": "minor",
+      "category": "missing_file",
+      "task": 8,
+      "issue": "Info.plist is referenced as a file to check for NSAppTransportSecurity/NSAllowsArbitraryLoads. The only Info.plist instances found are under App/.build/ (derived build artifacts), not a committed source file. The app likely has no standalone Info.plist (common in Swift Package Manager-based macOS apps where ATS settings live in Package.swift or the app manifest). The auditor may struggle to find the right file to read.",
+      "fix": "Minor — the task already says 'Package.swift and any Info.plist under App/' which correctly scopes the search. The auditor should find App/Package.swift (which exists) and note the absence of a source Info.plist. No task text change required, but a hint could be added that .build/ artifacts should be ignored."
+    }
+  ],
+  "notes": {
+    "no_tdd_anchor": "Confirmed: Tasks 7, 8, 9 have no TDD Anchor section, no 'Files to modify' entries, and their Verification Steps are analysis-only. The 'Automated' section in Task 9 calls 'swift test' as a read-only baseline check, not as a new test requirement — this is appropriate for a test audit.",
+    "feature_source_files": "All files listed under 'Feature source files (Tasks 1-6)' — UsageAPIModels.swift, UsageMapper.swift, OrgIDStore.swift, CookieBridge.swift, UsageAPIClient.swift, QuotaScraper.swift (modified), QuotaScraper+Lifecycle.swift (modified) — do NOT yet exist in the codebase because they will be created by Tasks 1-6. These are correctly expected to exist at audit time (wave 5, depends_on: [6]) and must not be flagged as hallucinations.",
+    "existing_files_verified": {
+      "AppLog.swift": "EXISTS at App/Sources/ClaudeCounter/Logging/AppLog.swift",
+      "ScrapeDebugLog.swift": "EXISTS at App/Sources/ClaudeCounter/Scraper/ScrapeDebugLog.swift",
+      "WebViewFactory.swift": "EXISTS at App/Sources/ClaudeCounter/Scraper/WebViewFactory.swift",
+      "QuotaParser.swift": "EXISTS at App/Sources/ClaudeCounter/Scraper/QuotaParser.swift",
+      "QuotaScraper+Extract.swift": "EXISTS at App/Sources/ClaudeCounter/Scraper/QuotaScraper+Extract.swift",
+      "QuotaScraper+Navigation.swift": "EXISTS at App/Sources/ClaudeCounter/Scraper/QuotaScraper+Navigation.swift",
+      "QuotaScraper.swift": "EXISTS at App/Sources/ClaudeCounter/Scraper/QuotaScraper.swift",
+      "QuotaScraper+Lifecycle.swift": "EXISTS at App/Sources/ClaudeCounter/Scraper/QuotaScraper+Lifecycle.swift",
+      "ClaudeUsage.swift": "EXISTS at App/Sources/ClaudeCounter/Models/ClaudeUsage.swift",
+      "AppState.swift": "EXISTS at App/Sources/ClaudeCounter/AppState.swift",
+      "AGENTS.md": "EXISTS at project root",
+      "JSQuotaParserTests.swift": "EXISTS at App/Tests/ClaudeCounterTests/JSQuotaParserTests.swift",
+      "QuotaParserTests.swift": "EXISTS at App/Tests/ClaudeCounterTests/QuotaParserTests.swift",
+      "ClaudeUsageTests.swift": "EXISTS at App/Tests/ClaudeCounterTests/ClaudeUsageTests.swift",
+      "Package.swift": "EXISTS at App/Package.swift"
+    },
+    "scope_separation_verified": "Security-specific concerns (cookie logging, ScrapeDebugLog leakage, ATS, host-scoping redirect stripping, URLSession cookie jar config, org-UUID URL injection) are scoped to Task 8. Task 7 explicitly hands off secret-handling to Task 8 ('Secret handling is owned by Task 8'). No incorrect overlap detected.",
+    "depends_on_verified": "All three tasks declare depends_on: [6], which transitively covers Tasks 1-5. This is correct — the Audit Wave runs after all implementation is complete.",
+    "wave_verified": "All three tasks declare wave: 5 and run independently of each other (no cross-audit dependency), which is correct for parallel audit execution."
+  },
+  "stats": {
+    "tasks_checked": 3,
+    "claims_verified": 31,
+    "issues_found": 4,
+    "critical": 0,
+    "major": 0,
+    "minor": 4
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "validator": "reality-checker",
+  "batch": [10],
+  "iteration": 1,
+  "status": "changes_required",
+  "findings": [
+    {
+      "severity": "critical",
+      "category": "missing_file",
+      "task": 10,
+      "issue": "Task references 'decisions.md' (Context Files section: '../decisions.md') but the file does not exist at work/api-scraper/decisions.md. The task instructs reading 'Decision 6' and 'Decision 7' reports from tasks 1–9 out of this file, but no such file has been created yet.",
+      "fix": "Either create decisions.md as part of the feature workflow (expected artifact of tasks 7–9 audit waves) before task 10 executes, or remove the reference and point directly to the relevant decisions in tech-spec.md sections Decision 6 and Decision 7."
+    },
+    {
+      "severity": "critical",
+      "category": "missing_file",
+      "task": 10,
+      "issue": "All new source files referenced by the feature (UsageAPIModels.swift, UsageMapper.swift, OrgIDStore.swift, CookieBridge.swift, UsageAPIClient.swift) and new test files (covering API models, HTTP classification, secret-log guard, fallback orchestration, backoff) do not yet exist in the codebase. Task 10 depends on tasks 1–6 having been executed, but depends_on only lists [7,8,9]. The task will attempt to run 'make ci' on a codebase where 'swift test' will either not exist or miss all new tests, producing a false-green or a build failure due to missing imports.",
+      "fix": "Add tasks 1, 2, 3, 4, 5, 6 to depends_on (or verify they are completed before wave 6 is scheduled). Currently depends_on: [7,8,9] is incomplete — it chains off the audit tasks but does not require the implementation tasks transitively."
+    },
+    {
+      "severity": "major",
+      "category": "missing_file",
+      "task": 10,
+      "issue": "Package.swift test target has no 'resources:' declaration for fixture files (usage.json, organizations.json). Task 10 will run 'make ci' / 'swift test', which includes tests from tasks 1–2 that load fixtures via Bundle.module. Since Package.swift currently has no resources entry in ClaudeCounterTests, those fixture-loading tests will fail at runtime with 'nil' from Bundle.module.url(). Task 10 claims the secret-log guard and decode tests will be 'green' but they depend on this Package.swift change (planned in task 1, not yet done).",
+      "fix": "Task 10 does correctly note 'Package.swift gains resources: [.copy(\"Fixtures/...\")]' is a task-1 change. This finding is not about task 10's description but about the runtime state when task 10 runs: ensure task 1 completes and Package.swift is updated before task 10 executes. The depends_on chain should enforce this."
+    },
+    {
+      "severity": "major",
+      "category": "feasibility",
+      "task": 10,
+      "issue": "Task 10 step 1 states 'make ci' expands to 'check → format-check lint test dead-code'. This is verified correct against the Makefile. However, 'make lint' runs 'swiftlint lint --strict --config .swiftlint.yml' without 'cd App' — it runs from the repo root. The Makefile does NOT prepend 'cd App' in the lint or format-check targets (format-check runs 'swiftformat App/Sources App/Tests ...' from root; lint runs 'swiftlint lint --strict ...' from root). This is consistent with the Makefile reality, but the task description in step 1 says 'SwiftLint --strict' and 'SwiftFormat lint (--lint)' without noting that they run against the repo-root paths. The description is accurate but the task's parenthetical 'swift build neявно через тесты' implies the build is implicit in 'swift test' — this is correct but worth confirming: 'make test' does 'cd App && swift test', so the build is indeed implicit.",
+      "fix": "No action required on task description — this is an observation. The Makefile targets are correctly described. Minor clarity note only."
+    },
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 10,
+      "issue": "Task 10 step 3 asks to 'confirm no new external dependencies in App/Package.swift'. The current Package.swift has no external dependencies at all (no '.package(url:...)' entries). The verification is straightforward and the task correctly identifies the file path. However, the task does not mention that Package.swift WILL have a new 'resources:' entry in the test target after task 1 — this is not an external dependency, but the reviewer should not flag it as a violation.",
+      "fix": "Add a clarifying note that 'resources: [.copy(...)]' additions to the test target are expected and are not external dependencies. This prevents a false FAIL finding during execution."
+    },
+    {
+      "severity": "minor",
+      "category": "tdd",
+      "task": 10,
+      "issue": "Task 10 references 'existing QuotaParser/JS tests' remaining green (step 1, AC bullet 2) and references specific test files implicitly. The actual test files in App/Tests/ClaudeCounterTests/ are: ClaudeUsageTests.swift, QuotaPayloadTests.swift, JSQuotaParserHarness.swift, ScrapeDebugFormatTests.swift, ScrapeDebugLogTests.swift, QuotaParserTests.swift, JSQuotaParserTests.swift, QuotaTitleFormatterTests.swift. These are the 'existing tests' the task refers to. No new test files for tasks 1–6 exist yet, so the 'secret-log guard integration test' (step 4) and 'backoff test' the task expects to find will be absent. Task 10 edge-case handling does correctly say 'Absent secret-log guard test → finding, not pass by default', which is the right approach.",
+      "fix": "The edge-case handling is correct. No change to task description needed, but execution depends on tasks 4–6 having deposited their test files. Ensure depends_on is complete (see critical finding #2)."
+    }
+  ],
+  "stats": {
+    "tasks_checked": 1,
+    "claims_verified": 18,
+    "issues_found": 6
+  },
+  "makefile_verification": {
+    "ci_target_exists": true,
+    "ci_expands_to": "check",
+    "check_expands_to": "format-check lint test dead-code",
+    "format_check_command": "swiftformat App/Sources App/Tests --config .swiftformat --lint",
+    "lint_command": "swiftlint lint --strict --config .swiftlint.yml",
+    "test_command": "cd App && swift test",
+    "dead_code_command": "periphery scan --project-root App --config $(CURDIR)/.periphery.yml --strict",
+    "task_description_accurate": true,
+    "note": "Task correctly states all targets run from repo root (not App/). 'make ci' chain matches exactly."
+  },
+  "deferred_checks_assessment": {
+    "memory_activity_monitor": "correctly_deferred",
+    "live_session_behavior": "correctly_deferred",
+    "cf_clearance_403_refresh": "correctly_deferred",
+    "logged_out_backoff_live": "correctly_deferred",
+    "reasoning": "All four live-environment checks are correctly marked as deferred to post-deploy QA with explicit Cloudflare/non-determinism rationale. Task correctly cites Agent Verification Plan tools (bash, log stream, Activity Monitor). No false claims of automating these."
+  },
+  "acceptance_criteria_traceability": {
+    "us1_api_fetch": "covered by make ci / swift test (integration test task 5)",
+    "us2_org_uuid_cache": "covered by swift test (unit test task 3)",
+    "us3_limits_mapping": "covered by swift test (unit tests tasks 1-2)",
+    "us4_fallback_on_failure": "covered by swift test (integration tests tasks 5-6)",
+    "us5_logged_out_no_spam": "covered by swift test (integration test task 6) + DEFERRED live",
+    "us6_memory_reduction": "correctly DEFERRED (Activity Monitor, live env)",
+    "tech_spec_ac_no_new_deps": "verified: Package.swift has no external packages",
+    "tech_spec_ac_lint_format_deadcode": "covered by make ci",
+    "tech_spec_ac_secrets_no_logs": "covered by secret-log guard integration test (task 4/5)"
+  }
+}

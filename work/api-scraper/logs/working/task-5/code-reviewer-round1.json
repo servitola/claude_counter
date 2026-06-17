@@ -1,0 +1,30 @@
+{
+  "verdict": "approved",
+  "summary": "UsageAPIClient is correct and well-structured. The no-cookie-jar triplet, shared Safari UA, org discovery+caching, classification ORDER (403-challenge and 401/login-redirect/200-login-HTML resolved BEFORE JSON decode), off-host Cookie stripping, Decision-6 value-free logging, and Swift 6 concurrency are all sound. All 11 tests pass (off-host redirect proven to fire under URLProtocol); build clean. Documented deviations (file split, serialized suite, inline two-org fixture, periphery:ignore on the Task-6 seam) are justified. Findings are minor robustness/hygiene items, none blocking.",
+  "findings": [
+    {
+      "severity": "medium",
+      "issue": "setCookieFields() re-introduces the comma-join hazard CookieBridge was deliberately built to avoid. It calls HTTPCookie.cookies(withResponseHeaderFields:for:) on response.allHeaderFields, where multiple Set-Cookie headers are folded into one comma-joined value — exactly the RFC-6265 Expires-comma mis-split that CookieBridge.writeBack (CookieBridge.swift:66-76) parses per-field to avoid. The client parses the folded value first, then re-emits cleaned 'name=value; Domain=; Path=' strings, so CookieBridge's safe per-field parser only ever sees already-degraded input. If the fold mis-splits, a rotating __cf_bm/sessionKey is dropped before CookieBridge sees it; the re-emitted string also discards Secure/HttpOnly/Expires. Non-blocking (best-effort write-back; happy path is single-cookie), but it defeats the documented safeguard.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift:282-299 (setCookieFields)",
+      "fix": "Pass the raw, per-field Set-Cookie header values straight to cookies.writeBack and let CookieBridge's per-field HTTPCookie.cookies(...) parse them once. Avoid round-tripping through allHeaderFields (which folds) and through a lossy 'name=value; Domain; Path' reconstruction. If repeated Set-Cookie fields cannot be recovered un-folded from HTTPURLResponse, document that limitation explicitly rather than re-folding."
+    },
+    {
+      "severity": "low",
+      "issue": "isLoginPage() treats any HTML body containing the substring \"/login\" as the login page. It is gated behind isHTML(), so a JSON /usage success cannot be misclassified, but any HTML error/interstitial that merely links to /login would resolve to .notLoggedIn instead of .decodeFailed/.needsCookieRefresh. Looser than the spec's 'stable login-page marker'.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift:235-240 (isLoginPage)",
+      "fix": "Prefer the stronger markers already present ('log in to claude', 'action=\"/login\"') and drop or tighten the bare body.contains(\"/login\") clause (the response.url path /login check in authResult already covers the redirect case)."
+    },
+    {
+      "severity": "low",
+      "issue": "Challenge detection is gated strictly on statusCode == 403. Cloudflare occasionally serves 'Just a moment' interstitials with 200/503; such a body would skip isChallenge, fail JSON decode, and return .decodeFailed (triggering the expensive DOM fallback) instead of .needsCookieRefresh. This matches the letter of the spec ('403 + challenge HTML') so it is not a deviation, only a robustness gap.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift:191-195 (classifyUsage)",
+      "fix": "Consider running isChallenge() whenever the body is HTML carrying the challenge markers regardless of status code, so a 200/503 interstitial still routes to .needsCookieRefresh rather than the DOM fallback. Confirm with the spike's observed status codes before changing."
+    },
+    {
+      "severity": "info",
+      "issue": "On a /usage non-200 that is neither a challenge nor an auth/login signal, the org cache is left intact and .decodeFailed is returned (UsageAPIClient.swift:203-206). This is correct for transient 5xx (uuid still valid), but a persistent non-200 will repeatedly hit /usage with a stale uuid. Acceptable for this task; QuotaScraper orchestration (Task 6) owns retry/backoff semantics.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift:203-206",
+      "fix": "No change required in Task 5. Ensure Task 6's fallback/backoff handles a sustained .decodeFailed without hammering /usage."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "validator": "reality-checker",
+  "iteration": 2,
+  "batch": [1, 2, 4],
+  "status": "approved",
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 4,
+      "issue": "AppLog.swift exposes os.Logger values directly (AppLog.scraper is a Logger, not a closure or wrapper). The injectable logging closure seam described in the TDD anchor (test_noCookieValueAppearsInCapturedLogSink) requires the implementer to add a seam that the existing AppLog type does not provide. The task correctly states 'Provide the seam — leave the exact mechanism to the implementer', so this is an implementation responsibility rather than a task contradiction.",
+      "fix": "No change required to the task. Confirm at code-review time that the chosen seam (e.g. an injectable closure defaulting to a no-op or an AppLog-wrapping closure) compiles under strict concurrency (Sendable closure or actor-isolated)."
+    },
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 1,
+      "issue": "Task Details note 'каталог App/Sources/ClaudeCounter/Scraper/ пока не существует — создать'. The Scraper/ directory already exists and contains 10 files (QuotaParser.swift, WebViewFactory.swift, etc.). The note is stale but harmless.",
+      "fix": "Remove the stale 'пока не существует — создать' note from the Details section to avoid confusing the implementer. No code impact."
+    }
+  ],
+  "round1_resolutions": {
+    "task1_flat_fields_missing": "RESOLVED — FlatWindow struct (resetsAt: Date? from resets_at, utilization: Double) and UsageResponse.fiveHour/sevenDay: FlatWindow? with CodingKeys are now explicitly declared in Task 1's 'What to do' step 1 and Details section. Fixture shape verified: five_hour/seven_day objects in usage.json have resets_at string and integer utilization (3/51), which decode into Double correctly. FlatWindow.utilization declared Double matches fixture integers without issue.",
+    "task1_tdd_double_literals": "RESOLVED — TDD anchor and Edge cases section both explicitly call out percent/utilization are Double and instruct test authors to use 3.0/51.0 literals. Fixture values 3 and 51 are integers in JSON; confirmed Swift Decodable will decode them into Double without error.",
+    "task2_prescriptive_hints": "RESOLVED — Implementation hints section is prefixed 'WHAT to achieve' and contains no Swift code blocks. All hints describe rules and patterns (shape like QuotaParser, truncate not round, assign resetsAt straight through, return nil only when nothing is available) without prescribing the implementation.",
+    "task2_redefines_flatwindow": "RESOLVED — Dependencies section explicitly says 'DEPENDS ON Task 1 ... Reuse — do NOT redefine' and names FlatWindow, UsageResponse.fiveHour, UsageResponse.sevenDay as Task 1 types to consume. Task 2 fallback TDD anchor test will compile once Task 1 lands.",
+    "task4_wave_dependency_promotion": "RESOLVED — wave: 1 / depends_on: [] documented as intentional promotion with explicit rationale note ('CookieBridge has no dependency on Tasks 1-3; it reads only WebKit cookie APIs. Intentional decomposition refinement'). Architecturally correct: CookieBridge only needs WKWebsiteDataStore/httpCookieStore, both confirmed present in WebViewFactory.swift.",
+    "task4_webkit_apis": "VERIFIED — WebViewFactory.swift confirms WKWebsiteDataStore.default().httpCookieStore pattern is real and used in the project. HTTPCookie.cookies(withResponseHeaderFields:for:), HTTPCookie.requestHeaderFields(with:), getAllCookies, and setCookie are all real Foundation/WebKit APIs.",
+    "task4_log_seam": "PARTIALLY RESOLVED — Task describes the seam requirement and TDD anchor test correctly. AppLog is a Logger (not injectable by default), so the implementer must add the seam. Flagged as minor-feasibility since the work is correctly scoped but requires care under strict concurrency."
+  },
+  "stats": {
+    "tasks_checked": 3,
+    "claims_verified": 38,
+    "issues_found": 2
+  }
+}

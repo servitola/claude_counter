@@ -1,0 +1,21 @@
+{
+  "verdict": "changes_requested",
+  "summary": "All 5 TDD anchors are present with meaningful, behavior-asserting checks that each pass the litmus test (remove the corresponding logic line and the test fails). The brittle weekly_all-vs-weekly_scoped `!=` reset assertion (the two resets differ by only ~9µs) was soundly replaced: weeklyPercent==51 distinguishes weekly_all (51) from weekly_scoped (8) unambiguously, and weeklyResetAt==<weekly_all exact date> confirms the date — selection of weekly_all over weekly_scoped is proven without relying on sub-microsecond Date rounding. Two real branch/edge-case gaps remain untested: the fiveHour->current fallback, and the resetsAt==nil pass-through.",
+  "findings": [
+    {
+      "severity": "high",
+      "gap": "The fiveHour -> currentPercent fallback (UsageMapper.swift:23, `response.fiveHour.map { Int($0.utilization) }`) is never exercised. The symmetric weekly fallback (sevenDay) IS tested, but the current-window fallback is not. Litmus test fails: delete line 23 and no test breaks. The mapper's current-vs-weekly fallback paths are asymmetric in coverage.",
+      "suggestion": "Add `current_falls_back_to_five_hour`: UsageResponse(limits: [weekly_all only], fiveHour: FlatWindow(resetsAt: fiveHourReset, utilization: 7), sevenDay: nil); assert usage.currentPercent == 7 and usage.currentResetAt == fiveHourReset (and weeklyPercent stays from the weekly_all limit). Mirror the existing missing_weekly_all_falls_back_to_seven_day structure."
+    },
+    {
+      "severity": "medium",
+      "gap": "The resetsAt == nil pass-through is untested. The task explicitly requires: on a chosen entry with no date, pass nil through to *ResetAt and do NOT fail the map when a percent is present (lines 24/28 use `session?.resetsAt ?? ...`). No test verifies a chosen limits[] entry with resetsAt: nil yields a non-nil ClaudeUsage with currentResetAt == nil while currentPercent is preserved.",
+      "suggestion": "Add `nil_reset_passes_through`: limits: [limit(kind: \"session\", percent: 5, resetsAt: nil)], no flat fields; assert UsageMapper.map(...) is non-nil, usage.currentPercent == 5, usage.currentResetAt == nil. This guards the documented edge case and the `?? nil` straight-through."
+    },
+    {
+      "severity": "low",
+      "gap": "weekly_scoped is only proven excluded via percent/date discrimination on the full fixture. A direct negative test (weekly_scoped present, weekly_all absent => weekly comes from sevenDay flat fallback, NOT from weekly_scoped) would make the 'never select weekly_scoped' contract explicit rather than inferred.",
+      "suggestion": "Optional hardening: UsageResponse(limits: [session, weekly_scoped(percent: 8)], fiveHour: nil, sevenDay: FlatWindow(.., utilization: 51)); assert weeklyPercent == 51 (the sevenDay fallback), confirming weekly_scoped's 8 is ignored even when it is the only weekly-group limit present."
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "verdict": "approved",
+  "summary": "CookieBridge cleanly implements host-scoped cookie read (MainActor, plain [HTTPCookie] value before request build), the Cookie-header helper, and Set-Cookie write-back with defense-in-depth domain filtering. Host scoping uses exact-match after leading-dot normalization, correctly accepting claude.ai / .claude.ai and rejecting notclaude.ai and claude.ai.evil.com. Decision-6 logging seam is injectable and emits only counts/host. All 5 tests pass and `make ci` is clean (0 lint violations).",
+  "findings": [
+    {
+      "severity": "minor",
+      "issue": "writeBack joins multiple Set-Cookie header fields with \", \" and feeds them to HTTPCookie.cookies(withResponseHeaderFields:). RFC 6265 forbids comma-folding of Set-Cookie precisely because Expires dates contain a comma; the comma-join is therefore a known footgun. I empirically tested Foundation's parser against single cf_bm headers, multi-cookie joins, and old-style Expires dates (Tue, 17-Jun-27 ...): in every realistic claude.ai case it split correctly, so in practice this is safe today. It remains a latent fragility if a future cookie carries an unusual value, and the parsing logic is well documented in a comment.",
+      "location": "App/Sources/ClaudeCounter/Scraper/CookieBridge.swift:writeBack(setCookieHeaders:responseURL:) (joined-with-\", \" then HTTPCookie.cookies(withResponseHeaderFields:))",
+      "fix": "Optional / FYI: for maximum robustness, parse each header field independently — HTTPCookie.cookies(withResponseHeaderFields: [\"Set-Cookie\": field], for: responseURL) in a loop — instead of comma-joining, then flatten + filter. Not required given the verified behavior for claude.ai cookies."
+    },
+    {
+      "severity": "minor",
+      "issue": "cookieHeader() calls read() internally, so a caller that needs both [HTTPCookie] and the header string triggers two store reads and two emitted log lines. Per the tech-spec, Task 5 will choose one form per fetch, so this is not a correctness issue, only a small redundancy.",
+      "location": "App/Sources/ClaudeCounter/Scraper/CookieBridge.swift:cookieHeader()",
+      "fix": "Nit: if Task 5 ends up needing both, expose a private read-once helper or have cookieHeader take a [HTTPCookie] param. Leave as-is otherwise."
+    }
+  ]
+}

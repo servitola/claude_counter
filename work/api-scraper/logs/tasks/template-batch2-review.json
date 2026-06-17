@@ -1,0 +1,39 @@
+{
+  "validator": "task-validator",
+  "batch": [7, 8, 9],
+  "iteration": 2,
+  "status": "approved",
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "consistency",
+      "task": 7,
+      "section": "Description / What to do / Acceptance Criteria / Reviewers / Post-completion",
+      "issue": "The output sink PATH was correctly unified to `work/api-scraper/logs/working/task-7/audit-report.md` (Reviewers line 168), but residual wording from the pre-fix `.json` state still describes it as a JSON sink: line 32 (\"the per-finding JSON sink described below\"), line 68 (\"Write the report to the JSON sink path (see Reviewers)\"), line 84 AC (\"Audit report written to the JSON sink\"), line 170 Reviewers (prescribes a per-finding JSON object schema `{ \"severity\": ..., \"issue\": ..., \"location\": ..., \"fix\": ... }`), and line 174 Post-completion (\"ссылка на JSON-отчёт аудита\"). The deliverable format (.md report) now contradicts the 'JSON sink' prose. Tasks 8 and 9 consistently describe a Markdown audit report.",
+      "fix": "Align Task 7 wording with the unified .md sink: replace 'JSON sink' with 'audit report' (lines 32, 68, 84); convert the JSON per-finding schema in the Reviewers section (line 170) to describe Markdown finding entries (severity / location file:symbol / issue / fix); change 'ссылка на JSON-отчёт аудита' to 'ссылка на logs/working/task-7/audit-report.md' (line 174). Mirror the phrasing already used in Tasks 8 and 9."
+    }
+  ],
+  "verification_of_fix": {
+    "unified_sink_path": "PASS — all three write to work/api-scraper/logs/working/task-{N}/audit-report.md (task 7: line 168; task 8: lines 92,116,147,157,218; task 9: lines 75,100,135,183).",
+    "no_leftover_logs_audits": "PASS — zero occurrences of logs/audits/ in any of the three files (was the task-9 sink in iteration 1).",
+    "no_leftover_security_or_test_audit_md": "PASS — zero references to security-audit.md or test-audit.md (were the task-8/task-9 sinks in iteration 1).",
+    "no_json_report_path": "PASS for path — no .json report-file path remains. Only .json hit is the `usage.json` test fixture (task 9, line 85) which is not a report sink. NOTE: task 7 retains 'JSON sink' prose + a per-finding JSON object schema (recorded as the single minor finding) but no .json file path.",
+    "tdd_anchor_absent": "PASS — no TDD Anchor section in any of the three; correct for analysis-only tasks.",
+    "reviewers_empty": "PASS — frontmatter reviewers: [] in all three; Reviewers section reads 'None'; no frontmatter<->body mismatch.",
+    "depends_on_6": "PASS — depends_on: [6] in all three; wave 5 > task 6 wave 4; references an existing task; no cycle.",
+    "skills_correct": "PASS — task 7: [code-reviewing]; task 8: [security-auditor]; task 9: [test-master]. Each matches its Required Skills section and its content (holistic code quality / OWASP secret-leak audit / test-quality audit)."
+  },
+  "notes": [
+    "The iteration-1 divergence (task 7 .json, task 8 security-audit.md, task 9 logs/audits/test-audit.md) is RESOLVED — all three now point at logs/working/task-{N}/audit-report.md.",
+    "Only regression-adjacent residue is the stale 'JSON' vocabulary inside task 7's prose and its per-finding object schema (minor). No other regressions introduced.",
+    "Standard skills<->reviewers mapping (code-writing->reviewers, skill-master->skill-checker) does not apply: these are analysis-only audit tasks with reviewers:[] by design (the auditor is itself the review artifact).",
+    "verify: [] is a valid YAML array in all three. Section order/presence conforms to template; mandatory context files (user-spec, tech-spec, decisions) present as markdown links. No placeholders or TODO/FIXME/TBD."
+  ],
+  "stats": {
+    "tasks_checked": 3,
+    "issues_found": 1,
+    "critical": 0,
+    "major": 0,
+    "minor": 1
+  }
+}

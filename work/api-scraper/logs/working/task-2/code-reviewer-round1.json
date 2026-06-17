@@ -1,0 +1,18 @@
+{
+  "verdict": "approved",
+  "summary": "UsageMapper is a pure, Sendable enum with a single static map(_:now:) that correctly implements Decision 5 and every selection/value/fallback/failure rule from task 2. All five TDD-anchor tests pass and the implementation reuses Task 1 types without redefinition.",
+  "findings": [
+    {
+      "severity": "minor",
+      "issue": "Multiple-same-kind handling relies on the implicit ordering of `.first { }`, which returns the first array element matching the predicate. This is correct and matches the documented 'take the first match' edge case, but it is not asserted by any test (the fixture has at most one of each kind). Behavior is correct; coverage of the tie-break is left to test-reviewer.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageMapper.swift:16-19",
+      "fix": "Optional: no code change needed. If desired, test-reviewer can add a case with two `weekly_all` entries asserting the first is selected, to lock the documented choice."
+    },
+    {
+      "severity": "minor",
+      "issue": "FYI: tech-spec's mapping note mentions a secondary fallback for current via `group == \"session\"` and for weekly via `group == \"weekly\"` (unscoped). The mapper selects strictly on `kind` (session / weekly_all) and falls back only to the flat windows, not to a group-based limits[] lookup. This matches Task 2's explicit instructions ('select strictly on kind == weekly_all', 'limits[] entry whose kind is session') and the AC, so it is the correct scope for this task; the group fallback, if ever needed, would belong to UsageAPIClient classification, not this pure mapper.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageMapper.swift:16-25",
+      "fix": "No change required; documented deviation is intentional and aligned with the task spec."
+    }
+  ]
+}

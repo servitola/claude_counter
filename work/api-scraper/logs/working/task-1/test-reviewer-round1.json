@@ -1,0 +1,21 @@
+{
+  "verdict": "changes_requested",
+  "summary": "All 4 TDD anchors are present and meaningfully asserted: exact Date values via independent reference formatters (good isolation from the decoder under test), percent/utilization as Double literals (3.0/51.0/8.0), both ISO-8601 paths (with and without fractional seconds), org UUID. Fixtures are byte-identical to the source of truth and correctly wired via Package.swift resources -> Bundle.module. Litmus test passes for every assertion. The one material gap is the absence of a negative test for the malformed-date branch, which the tech-spec Data Models explicitly pin (two-formatter-then-throw DecodingError.dataCorrupted).",
+  "findings": [
+    {
+      "severity": "high",
+      "gap": "No negative test for malformed/unparseable resets_at. The source decodeISO8601Date has a third branch that throws DecodingError.dataCorrupted when neither ISO-8601 formatter matches, but no test exercises it. Litmus failure: replace that throw with `return Date()` and every existing test still passes. The tech-spec Data Models section explicitly pins the two-formatter-then-throw strategy as a contract.",
+      "suggestion": "Add @Test decodesGarbageDateThrows: decode FlatWindow.self from `{\"resets_at\":\"not-a-date\",\"utilization\":1}` and assert it throws, scoped to the right error, e.g. `#expect(throws: DecodingError.self) { try UsageAPIModels.decoder.decode(FlatWindow.self, from: Data(...)) }`. Optionally also assert a non-ISO value like `\"2026/06/17 13:49\"` to lock the contract that only ISO-8601 is accepted."
+    },
+    {
+      "severity": "low",
+      "gap": "weekly_scoped robustness is under-asserted as an explicit case. weekly_scoped is the only limits[] entry carrying a non-null nested `scope` object (scope.model.display_name), which is the real exercise of 'extra/unknown keys are ignored'. The test only asserts its percent == 8.0; the fact that the nested scope object does not break decoding is covered only implicitly by decoding the full fixture.",
+      "suggestion": "In decodesUsageFixtureLimits, add explicit assertions for the weekly_scoped entry beyond percent (e.g. group == \"weekly\", isActive == false, resetsAt == exact date 2026-06-17T18:59:59.900493+00:00) so the entry with a populated nested scope is fully verified, proving the ignored-extra-keys path on the trickiest element."
+    },
+    {
+      "severity": "low",
+      "gap": "No explicit assertion that unknown top-level keys (spend, extra_usage, seven_day_sonnet, cinder_cove: null, etc.) and null-valued sibling fields do not break UsageResponse decoding. Currently covered only implicitly because the full fixture decodes successfully.",
+      "suggestion": "Optional: keep as-is (decoding the real fixture already covers it), or add a brief comment in decodesUsageFixtureLimits noting that successful decode of the full fixture asserts unknown/null top-level keys are ignored. No new test strictly required."
+    }
+  ]
+}

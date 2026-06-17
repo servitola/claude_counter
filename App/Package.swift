@@ -30,6 +30,10 @@ let package = Package(
             name: "ClaudeCounterTests",
             dependencies: ["ClaudeCounter"],
             path: "Tests/ClaudeCounterTests",
+            resources: [
+                .copy("Fixtures/usage.json"),
+                .copy("Fixtures/organizations.json"),
+            ],
             swiftSettings: strict
         ),
     ]

@@ -1,0 +1,57 @@
+{
+  "verdict": "changes_requested",
+  "summary": "Tests correctly assert observable end-state (AppState.usage, scraper.webView, fallback counter) rather than spy calls, and the async pass is deterministically awaited via awaitInFlight() (the MainActor apply runs inside inFlightTask, so awaiting the Task awaits the apply). The five core branches (.success, .needsCookieRefresh, .decodeFailed, .notLoggedIn x N, .transport) plus wake/window-open re-probes are covered. However three production behaviors that the spec calls load-bearing have ZERO coverage: the isFetching single-flight guard, the `guard !loggedOut` suppression inside runWebViewFallback(), and the /login-detection backoff in Navigation. Two fallback tests are mock-return shaped (assert the value their own injected closure wrote).",
+  "findings": [
+    {
+      "severity": "high",
+      "category": "missing_coverage",
+      "gap": "Single-flight guard (`guard !isFetchingNow else { return }`) is never exercised. The tick() helper always awaits awaitInFlight() before the next scrape(), so two concurrent passes never overlap. AC 'only one tick in flight at a time' and the edge case 'overlapping timer/wake/Refresh/window-open triggers' are untested. Litmus: delete the guard -> every test still passes.",
+      "suggestion": "Add testOverlappingTicksRunSingleFetch: install a fetchUsage seam that increments a Sendable call-counter and blocks on a continuation/AsyncStream until released. Call scraper.scrape() twice WITHOUT awaiting in between, release the gate, then awaitInFlight(). Assert the fetch call-counter == 1 and counter (fallback) reflects a single pass. This is the only way to prove the second trigger no-ops."
+    },
+    {
+      "severity": "high",
+      "category": "missing_coverage",
+      "gap": "The Decision-7 suppression line `guard !loggedOut else { return }` inside runWebViewFallback() has zero coverage. repeatedNotLoggedInKeepsWebViewNilAcrossTicks passes only because .notLoggedIn never calls runWebViewFallback() at all -- it does NOT drive the suppression branch. Since scrape() clears loggedOut at the top of every pass, the suppression guard can only fire when loggedOut was set EARLIER IN THE SAME PASS (via /login detection on a fallback, per spec step 4). No test reaches runWebViewFallback() with loggedOut already true. Litmus: delete the `guard !loggedOut` line -> all tests still pass.",
+      "suggestion": "Add a test that drives a fallback (.needsCookieRefresh) whose injected runFallback closure first sets scraper.loggedOut = true (simulating /login detection mid-fallback) and then re-invokes scraper.runWebViewFallback() (or build a scenario where a same-pass second fallback is attempted). Assert the second entry is suppressed: counter does not increment again and webView stays nil. Alternatively expose a seam to set loggedOut before calling runWebViewFallback() directly and assert the override closure is NOT entered."
+    },
+    {
+      "severity": "high",
+      "category": "missing_coverage",
+      "gap": "QuotaScraper+Navigation didFinish on '/login' sets loggedOut = true and tears down -- this is the ONE realistic path that actually arms suppression for a subsequent fallback in the same pass (spec step 4, edge cases). The runFallback test seam bypasses the real navigation delegate entirely, so this branch is completely untested. Litmus: remove `loggedOut = true` from Navigation -> no test fails.",
+      "suggestion": "Add testLoginPageDetectionArmsBackoff: drive a real (or lightly-faked) didFinish with a webView.url of https://claude.ai/login and assert scraper.loggedOut == true and webView == nil (torn down). If exercising the WKNavigationDelegate directly is impractical, add a thin testable seam around the /login branch and assert the loggedOut transition plus teardown."
+    },
+    {
+      "severity": "medium",
+      "category": "mock_only",
+      "gap": "needsCookieRefreshFallbackPopulatesStateViaDomScrape and decodeFailedFallbackPopulatesStateViaDomScrape assert appState.usage == domScrapeUsage(), but domScrapeUsage is the value the test's OWN injected runFallback closure writes. The state assertion tests the stub wiring, not production DOM-scrape/QuotaParser code. They do legitimately verify orchestrator ROUTING via counter >= 1, but the name and the equality assertion overclaim 'populates state via DOM scrape'.",
+      "suggestion": "Keep counter >= 1 (real routing assertion) but reframe these as routing tests: assert only that the fallback was entered (counter >= 1) and that AppState reflects whatever the fallback produced. Cover the REAL DOM-scrape -> AppState path with the existing QuotaParser/JS/payload tests (named in the anchor as 'remain green') or a separate test that feeds a real QuotaPayload through QuotaParser and asserts the mapped ClaudeUsage. Do not let the orchestration test imply it validates production DOM scraping."
+    },
+    {
+      "severity": "low",
+      "category": "redundant_testing",
+      "gap": "needsCookieRefresh and decodeFailed tests are byte-for-byte identical except the scripted result case; both only prove 'routes to runWebViewFallback() and counter >= 1'. The second catches no failure the first does not, beyond a distinct enum branch.",
+      "suggestion": "Either parametrize the two cases into one table-driven test over [.needsCookieRefresh, .decodeFailed], or differentiate them (e.g. decodeFailed should still increment counter while a .notLoggedIn-then-decodeFailed sequence proves clear-at-top re-enables fallback). Keep both only if each asserts a distinct behavior."
+    },
+    {
+      "severity": "low",
+      "category": "anti_pattern",
+      "gap": "wakeAfterNotLoggedIn and windowOpenAfterNotLoggedIn tests both drive the re-probe by calling tick(scraper) (plain scrape()) rather than the actual entry points observeWake()/openWindow(). They prove 'a second scrape() after .notLoggedIn re-probes' but NOT that observeWake() forces a scrape or that openWindow() calls scraper.scrape(). The wiring added in StatusBarController+Menu.openWindow() and observeWake() is untested.",
+      "suggestion": "For window-open, exercise StatusBarController.openWindow() (or assert it calls scraper.scrape()) so the added re-probe wiring is guarded. For wake, post NSWorkspace.didWakeNotification (or invoke the observer block) and assert AppState populates -- otherwise removing the scrape() call from openWindow() or the wake observer would not fail any test."
+    }
+  ],
+  "metrics": {
+    "filesReviewed": 6,
+    "litmusTest": {
+      "checked": 8,
+      "passed": 4,
+      "failed": 4
+    },
+    "coverageAssessment": "insufficient",
+    "pyramidBalance": {
+      "unit": 8,
+      "integration": 0,
+      "e2e": 0,
+      "assessment": "unbalanced"
+    }
+  }
+}

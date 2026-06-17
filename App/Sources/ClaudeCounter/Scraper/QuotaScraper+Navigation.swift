@@ -13,6 +13,10 @@ extension QuotaScraper: WKNavigationDelegate {
         let url = webView.url?.absoluteString ?? ""
         if url.contains("/login") {
             AppLog.scraper.notice("Auth required — skipping until user logs in")
+            // A fallback that lands on the login page means we're logged out —
+            // arm the Decision-7 backoff so the next tick won't re-spawn a
+            // login WebView. Cleared at the top of the next explicit scrape().
+            loggedOut = true
             tearDown()
             return
         }

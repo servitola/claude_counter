@@ -51,7 +51,13 @@ enum WebViewFactory {
         ) {}
     }
 
-    private static let safariUserAgent = """
+    /// The Safari user-agent string used for every claude.ai request.
+    ///
+    /// Exposed (not `private`) so `UsageAPIClient` reuses this single source of
+    /// truth instead of hand-copying the literal: Cloudflare gates on the UA
+    /// matching the WebView that `cf_clearance` was issued against, so the
+    /// URLSession fetch and the WebView must send byte-identical strings.
+    static let safariUserAgent = """
     Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
     AppleWebKit/605.1.15 (KHTML, like Gecko) \
     Version/18.0 Safari/605.1.15

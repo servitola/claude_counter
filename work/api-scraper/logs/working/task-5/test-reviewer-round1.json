@@ -1,0 +1,41 @@
+{
+  "verdict": "changes_requested",
+  "summary": "All 10 TDD anchors are present and the URLProtocol stub is sound (path-suffix routing disambiguates /organizations vs /usage, NSLock-guarded global state, single .serialized suite). Classification precedence is genuinely verified: the login-HTML body is unmappable JSON, so the .notLoggedIn result can only come from the pre-decode check — an inverted order would surface .decodeFailed and fail the test. Discovery cache-hit is well covered (HitCounter asserts /organizations is hit exactly once across two fetches). The Decision-6 log guard is meaningful (asserts logs were emitted AND the sentinel never appears). Two real gaps from the Testing Strategy are missing entirely, plus weaker assertions than the spec mandates.",
+  "findings": [
+    {
+      "severity": "major",
+      "category": "missing_coverage",
+      "location": "App/Tests/ClaudeCounterTests/UsageAPIClientTests.swift (no test) ; UsageAPIClient.swift:216,272-297 (writeBackCookies / setCookieFields)",
+      "gap": "Cookie write-back is entirely untested. The Testing Strategy lists it explicitly ('a stub response carrying Set-Cookie results in the cookie reaching the WebView cookie store'), and makeStubbedClient even exposes a `writeBack` seam — but no test installs a Set-Cookie route or asserts the closure fires. Litmus: deleting the entire writeBackCookies/setCookieFields path (UsageAPIClient.swift:216,272-297) breaks zero tests. The folded-vs-per-cookie reduce logic in setCookieFields is non-trivial and ships unverified.",
+      "suggestion": "Add testSuccessWritesBackSetCookie: stub /usage → 200 usage.json with headers [\"Set-Cookie\": \"__cf_bm=ROTATED; Path=/; Domain=claude.ai\"]; inject a capturing writeBack closure (NSLock-guarded array, like LogCollector); assert it received exactly one call whose first element contains \"__cf_bm=ROTATED\" and the responseURL host is claude.ai. Add a negative case: a 200 with no Set-Cookie must NOT invoke writeBack (count == 0)."
+    },
+    {
+      "severity": "major",
+      "category": "anti_pattern",
+      "location": "App/Tests/ClaudeCounterTests/UsageAPIClientTests.swift::successReturnsPopulatedUsage",
+      "gap": "Reset dates are asserted only as `!= nil`, the weak form the skill explicitly warns against. The Testing Strategy requires 'resets_at → currentResetAt/weeklyResetAt asserted as exact Dates', and the fixture pins exact values (current 2026-06-17T13:49:59.900458+00:00, weekly 2026-06-17T18:59:59.900484+00:00). With only != nil, a wiring bug that swapped current/weekly dates, or mapped weekly_scoped (18:59:...900493) instead of weekly_all, would pass.",
+      "suggestion": "Assert exact Dates: build expected via ISO8601DateFormatter with .withFractionalSeconds and #expect(claudeUsage.currentResetAt == expectedCurrent) / == expectedWeekly. This also closes the weekly_all-vs-weekly_scoped distinction at the integration boundary (the .900484 vs .900493 millisecond difference is the discriminator)."
+    },
+    {
+      "severity": "minor",
+      "category": "missing_coverage",
+      "location": "App/Tests/ClaudeCounterTests/UsageAPIClientTests.swift::multiOrgPicksActiveOrFirst ; UsageAPIClientTestSupport.swift twoOrgJSON",
+      "gap": "The anchor asks for 'active/first' selection, but the test only proves 'first'. The fixture comment claims 'first org inactive', yet twoOrgJSON carries no active flag and OrgSummary has none, so 'active' selection is neither implemented nor testable. The misleading comment implies a behavior the test does not verify.",
+      "suggestion": "Either (a) fix the comment to state plainly that selection is deterministically first because OrgSummary has no active flag, or (b) if active-org selection is intended per the anchor, add an `is_active`/active field to OrgSummary and a fixture variant where the active org is NOT first, asserting that one is picked. As-is the 'active' half of the anchor is unmet — flag for Task 9 audit if the product wants active-org semantics."
+    },
+    {
+      "severity": "minor",
+      "category": "anti_pattern",
+      "location": "App/Tests/ClaudeCounterTests/UsageAPIClientTests.swift::transportErrorReturnsTransport",
+      "gap": "Asserts only `case .transport`, discarding the associated error. The injected URLError(.notConnectedToInternet) is never checked, so a path that returns .transport with a wrong/placeholder error would pass.",
+      "suggestion": "Bind the error and assert: guard case .transport(let err) = result; #expect((err as? URLError)?.code == .notConnectedToInternet)."
+    },
+    {
+      "severity": "minor",
+      "category": "missing_coverage",
+      "location": "App/Tests/ClaudeCounterTests/UsageAPIClientTests.swift::noCookieValueInLogs",
+      "gap": "Decision 6 covers both request headers AND response-body dumps (the optional .decodeFailed repro dump is response-body-only but must still never include the Cookie header). The guard test only injects the sentinel into the outgoing Cookie header; it does not exercise a .decodeFailed/decode path with a sentinel-bearing response. The primary leak vector (request cookie) is covered, so this is low risk.",
+      "suggestion": "Optionally extend: drive a .decodeFailed fetch whose response body contains a sentinel and confirm no full-body dump leaks it, OR explicitly note in the test that body-dump discipline is enforced by Task 8 security audit."
+    }
+  ]
+}

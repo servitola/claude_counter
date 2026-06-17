@@ -1,0 +1,10 @@
+{
+  "verdict": "pass",
+  "findings": [
+    {
+      "severity": "minor",
+      "section": "standards",
+      "issue": "Project Knowledge files (architecture.md, patterns.md) are absent under .claude/skills/project-knowledge/references/, so naming/standards compliance could not be cross-checked against documented conventions. Proposed paths (App/Sources/ClaudeCounter/Scraper, Models, Logging; App/Tests/.../Fixtures) match the existing tree referenced in 'Files to read' and PascalCase Swift naming is internally consistent, so this is informational only."
+    }
+  ]
+}

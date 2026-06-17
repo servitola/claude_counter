@@ -1,0 +1,71 @@
+{
+  "verdict": "pass",
+  "round": 2,
+  "scope": "Re-validation of round-1 SECURITY findings against tech-spec work/api-scraper/tech-spec.md (design review, no code yet). Authenticated URLSession client reusing claude.ai session cookies (sessionKey, cf_clearance) bridged from WKWebsiteDataStore.",
+  "round1_resolution": {
+    "HIGH_logging_privacy": "resolved",
+    "MED_cookie_host_scoping_redirect_leak": "resolved",
+    "MED_decodeFailed_request_dump_leak": "resolved",
+    "MED_cookie_write_back_integrity": "resolved",
+    "MED_tls_ats_posture": "resolved",
+    "LOW_org_uuid_validation": "open-minor",
+    "LOW_json_shape_drift": "resolved-by-test-plan"
+  },
+  "summary": {
+    "high": 0,
+    "med": 0,
+    "low": 1,
+    "note": "All round-1 HIGH and MED findings are genuinely closed in the spec text (Decision 2 and Decision 6, plus the risk table and acceptance criteria). No critical/blocking issue. One non-blocking LOW residual remains (committed real org UUID in fixtures) plus an enforcement reminder for code-time."
+  },
+  "findings": [
+    {
+      "severity": "low",
+      "issue": "Fixtures usage.json and organizations.json contain NO secrets. Grep for sessionKey/cf_clearance/__cf_bm/cookie/authorization/bearer/token/api-key/password returned zero matches. organizations.json org name is the generic placeholder \"user's Organization\" (no PII); usage.json carries only utilization percentages and reset timestamps. The only residual is that organizations.json embeds a real-looking account org uuid (8f859b21-0e14-4444-9de9-ccd652486f04) that will be copied into the committed test target. A uuid is an account identifier, not a credential, and is not exploitable on its own, so this is non-blocking.",
+      "recommendation": "Optional hygiene: replace the real org uuid in the committed fixture with a synthetic example uuid (e.g. 00000000-0000-0000-0000-000000000000) so a real account identifier is not stored in the repo. Not required to proceed."
+    },
+    {
+      "severity": "low",
+      "issue": "ENFORCEMENT REMINDER (not a spec gap). The spec-level controls are adequate, but they are design assertions; the actual leak vectors close only at code time. Decision 6 forbids privacy:.public on cookie/header logs, Decision 2 mandates .never cookie jar + claude.ai host scoping + off-host Cookie stripping on redirect, and bars cert-validation bypass. These must be verified in Task 8 (security audit) against real code.",
+      "recommendation": "During Task 8, confirm in the implementation: (1) no privacy:.public interpolation near cookie/header/token symbols; (2) URLSessionConfiguration has httpCookieAcceptPolicy=.never, httpShouldSetCookies=false, httpCookieStorage=nil; (3) a willPerformHTTPRedirection delegate strips the Cookie header when redirect host != claude.ai, with a test fixture 302 to a foreign host proving the cookie is not forwarded; (4) Set-Cookie write-back persists only claude.ai-scoped cookies; (5) no NSAppTransportSecurity exception in Info.plist and no auth-challenge delegate that bypasses default server-trust evaluation; (6) the .decodeFailed dump, if added, is response-body-only."
+    }
+  ],
+  "round1_findings_detail": [
+    {
+      "round1_severity": "high",
+      "finding": "Logging privacy: secrets could leak into unified logging via copied privacy:.public pattern.",
+      "status": "resolved",
+      "evidence": "Decision 6 (lines 175-186) forbids logging cookie values (sessionKey, cf_clearance, __cf_bm) and request headers, mandates privacy:.private for token-adjacent fields, names the root cause (existing AppLog uses privacy:.public), and frames the control as up-front-mandatory. Reinforced by risk table line 332 and acceptance criterion line 354. Adequate."
+    },
+    {
+      "round1_severity": "med",
+      "finding": "Cookie host-scoping / ambient cookie jar / credential leak on off-host redirect.",
+      "status": "resolved",
+      "evidence": "Decision 2 (lines 125-131): URLSession runs with no cookie jar (httpCookieAcceptPolicy=.never, httpShouldSetCookies=false, httpCookieStorage=nil); only claude.ai-domain cookies attached; redirect delegate strips the Cookie header on off-host redirect. Closes CWE-200 cookie exfiltration. Adequate."
+    },
+    {
+      "round1_severity": "med",
+      "finding": "Future .decodeFailed debug dump could write request/Cookie header to disk.",
+      "status": "resolved",
+      "evidence": "Decision 6 lines 180-181 explicitly require any .decodeFailed repro dump to be response-body-only, never the request or its Cookie header. Exactly the requested control."
+    },
+    {
+      "round1_severity": "med",
+      "finding": "Cookie write-back integrity: blind Set-Cookie merge into WKWebsiteDataStore could clobber/overwrite cross-domain cookies.",
+      "status": "resolved",
+      "evidence": "Decision 2 write-back section (lines 132-141) makes the WebView store the single source of truth re-read each fetch, restricts attached/written cookies to claude.ai, and the design keeps the URLSession jar disabled. The earlier open 'or' between two approaches is now decided (write back claude.ai-scoped Set-Cookie). Adequate."
+    },
+    {
+      "round1_severity": "med",
+      "finding": "TLS/ATS posture not affirmatively constrained; risk an implementer adds an ATS exception or trust-bypass.",
+      "status": "resolved",
+      "evidence": "No cert-validation bypass is implied anywhere: no URLSessionDelegate server-trust override, no NSAllowsArbitraryLoads, no pinning disablement. Decision 1's Cloudflare 200-vs-403 behavior relies on Apple's native validated TLS stack and does NOT weaken TLS. All traffic is HTTPS to claude.ai. No residual concern at the design level (enforcement reminder carried into findings for code-time verification)."
+    }
+  ],
+  "non_findings_confirmed": [
+    "Fixtures contain no secrets (sessionKey/cf_clearance/__cf_bm/cookies/auth headers) - grep zero matches.",
+    "Org name is generic placeholder, no PII.",
+    "No hardcoded secrets in spec; auth is via system WebKit cookie store.",
+    "No TLS/ATS bypass implied; stock Apple stack, no trust-all delegate.",
+    "No injection sink: URLs built from a validated uuid into a fixed claude.ai path."
+  ]
+}
