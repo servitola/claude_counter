@@ -254,3 +254,60 @@ An `awaitInFlight()` test hook awaits the single-flight orchestrator Task.
 - `cd App && swift test` → 97 tests pass, 14 suites
 - `make ci` (format-check, lint --strict, test, periphery dead-code) → clean, exit 0
 - User verify-app run (logged-in menu-bar parity + Activity Monitor: no per-tick WebContent/GPU helper, idle RSS below ~82 MB) deferred to lead/Phase 4.
+
+---
+
+## Task 7: Code Audit
+
+**Status:** Done
+**Agent:** code-auditor
+**Summary:** Holistic cross-component audit of the Tasks 1–6 source files (no
+code changes). Verdict: clean overall, no critical/blocking findings. Cookie
+single-source-of-truth (Decision 2), host scoping, Decision-7 backoff
+persistence, the 200-login-page-before-decode classification, and Swift 6 strict
+concurrency all verified sound. One HIGH consistency gap reported: a Cloudflare
+403 challenge on the **org-discovery** call (`resolveOrgUUID`) routes to
+`.decodeFailed` instead of `.needsCookieRefresh` because it skips the
+`isChallenge` pre-check the `/usage` call runs — recoverable (both spin the
+WebView fallback) but mislabels the cold-start refresh path. Plus MEDIUM/LOW
+items (over-broad `/login` body marker in `isLoginPage`, fallback retry routing
+through the API path, comma-folded `Set-Cookie` write-back nuance, duplicated
+host-scoping logic).
+**Report:** logs/working/task-7/audit-report.md
+**Deviations:** none (analysis-only task; no source modified).
+
+---
+
+## Task 8: Security Audit
+
+**Status:** Done
+**Agent:** security-auditor
+**Summary:** OWASP-Top-10 pass over the new authenticated HTTP client + cookie
+handling. Result is CLEAN — zero critical/high/medium findings; two
+informational notes only. Decision 6 (no secret ever logged/dumped/persisted)
+and Decision 2 (cookies attached only to claude.ai, stripped on off-host
+redirect, URLSession with no cookie jar of its own, UUID-validated org-id URL
+interpolation) are honored on every audited path. No ATS exception, no
+TLS/cert-validation bypass, no auth-challenge delegate; org UUID is the only
+UserDefaults value (non-secret); the on-disk ScrapeDebugLog can only capture DOM
+text (HttpOnly cookies are unreadable from the extraction JS) and the API
+`.decodeFailed` path dumps nothing. Feature is not security-blocked for Task 10.
+**Report:** logs/working/task-8/audit-report.md
+**Deviations:** none (analysis-only task; no source modified).
+
+---
+
+## Task 9: Test Audit
+
+**Status:** Done
+**Agent:** test-auditor
+**Summary:** Holistic test-quality audit of the feature suite against the
+tech-spec Testing Strategy. Verdict: PASSED (clean) — all 47 feature `@Test`s
+(plus the pre-API DOM-scrape fallback tests) map to the spec's unit +
+integration bullets with exact-value, litmus-resistant assertions; orchestration
+asserts AppState end-state (not spies), URLProtocol stubbing is
+DI'd/serialized/leak-free, and isolation uses throwaway UserDefaults +
+non-persistent cookie stores. Baseline green (97 tests, 14 suites). 0
+critical/high/medium, 3 LOW polish items only; no fix cycle required.
+**Report:** logs/working/task-9/audit-report.md
+**Deviations:** none (analysis-only task; no code/test modified).
