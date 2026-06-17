@@ -35,6 +35,10 @@ extension StatusBarController {
 
     @objc func openWindow() {
         UsageWindow.shared.show()
+        // Decision 7 re-probe: opening the usage window re-attempts the API.
+        // scrape() clears the logged-out backoff at its top, so the window
+        // re-probes even after a prior .notLoggedIn.
+        scraper.scrape()
     }
 
     @objc func refresh() {

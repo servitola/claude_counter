@@ -33,9 +33,8 @@ struct CookieSource {
     let header: @Sendable () async -> String
     let writeBack: @Sendable ([String], URL) async -> Void
 
-    // Production seam wired in by Task 6 (the scrape loop); unreferenced until
-    // then but exercised by the smoke harness.
-    // periphery:ignore
+    /// Production seam wired in by Task 6 (the scrape loop) via
+    /// `QuotaScraper.makeProductionFetch()`.
     @MainActor
     static func bridged(_ bridge: CookieBridge = CookieBridge()) -> Self {
         Self(

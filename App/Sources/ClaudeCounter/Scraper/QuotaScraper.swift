@@ -2,12 +2,22 @@ import AppKit
 import Foundation
 import WebKit
 
-/// Polls claude.ai/settings/usage every minute and pushes parsed data
-/// to AppState. Critically, the WKWebView is **ephemeral**: created at
-/// the start of each scrape, torn down at the end. claude.ai is a
-/// heavy SPA — keeping it loaded permanently costs ~700MB of WebContent
-/// process memory. Cycling the webview drops idle footprint to ~zero
-/// (cookies persist in shared WKWebsiteDataStore.default()).
+/// API-first usage poller. On each 60 s tick `scrape()` calls the JSON API
+/// (`UsageAPIClient`) FIRST; on success it pushes the parsed snapshot to
+/// `AppState` WITHOUT building a `WKWebView` — that is the memory win (no
+/// per-tick WebContent/GPU/Networking helper spawn).
+///
+/// The ephemeral-WebView DOM-scrape pipeline is RETAINED, demoted to a
+/// fallback (`runWebViewFallback()`) that only runs when the API path cannot
+/// answer (`.needsCookieRefresh` / `.decodeFailed`). The WebView is still
+/// ephemeral: created at the start of a fallback, torn down at the end
+/// (cookies persist in shared `WKWebsiteDataStore.default()`).
+///
+/// Decision 7 backoff: a `.notLoggedIn` result sets `loggedOut`, which
+/// suppresses the WebView fallback on subsequent ticks (no login-WebView spam,
+/// preserves US-5 quiet-when-logged-out). The flag is cleared at the top of
+/// every `scrape()`, so the explicit re-probe entries — system wake, manual
+/// "Refresh Now", and usage-window open — each re-attempt the API for free.
 @MainActor
 final class QuotaScraper: NSObject {
     /// `claude.ai/settings/usage` is a constant; force-unwrap inside a
@@ -42,8 +52,53 @@ final class QuotaScraper: NSObject {
     // periphery:ignore
     private var wakeObserver: (any NSObjectProtocol)?
 
-    func start(appState: AppState) {
+    // MARK: - Decision 7 backoff + concurrency guards
+
+    /// Set by a `.notLoggedIn` API result (or by `/login` detection on the
+    /// fallback path). While set, `runWebViewFallback()` returns immediately
+    /// without building a WebView, so no login-WebView is spawned tick after
+    /// tick. Cleared at the top of every `scrape()`.
+    var loggedOut = false
+    /// Single-flight guard: only one orchestrator pass is in flight at a time,
+    /// so overlapping timer/wake/Refresh/window-open triggers don't stack.
+    /// Internal (not `private`) so the orchestrator extension can read it.
+    var isFetchingNow = false
+    /// The in-flight orchestrator Task, exposed only so tests can await it.
+    var inFlightTask: Task<Void, Never>?
+
+    // MARK: - Injected seams
+
+    /// The API probe. Defaults to the production `UsageAPIClient.fetch()`;
+    /// tests substitute a scripted `UsageFetchResult` with no network.
+    /// Internal (not `private`) so the orchestrator extension can call it.
+    let fetchUsage: @Sendable () async -> UsageFetchResult
+    /// Test override for the WebView fallback body. When `nil`, the real
+    /// ephemeral-WebView pipeline (`buildEphemeralWebView()`) runs; tests
+    /// substitute a closure that counts entries and simulates a DOM-scrape
+    /// success. Internal so the orchestrator extension can read it.
+    let runFallbackOverride: (@MainActor () -> Void)?
+
+    /// - Parameters:
+    ///   - fetchUsage: API probe seam (default: production `UsageAPIClient`).
+    ///   - runFallback: WebView fallback body seam (default: real pipeline).
+    init(
+        fetchUsage: (@Sendable () async -> UsageFetchResult)? = nil,
+        runFallback: (@MainActor () -> Void)? = nil
+    ) {
+        self.fetchUsage = fetchUsage ?? Self.makeProductionFetch()
+        self.runFallbackOverride = runFallback
+        super.init()
+    }
+
+    // MARK: - Lifecycle
+
+    /// Wire `AppState` without starting the timer (used by `start` and tests).
+    func attach(appState: AppState) {
         self.appState = appState
+    }
+
+    func start(appState: AppState) {
+        attach(appState: appState)
         scrape()
         timer = Timer.scheduledTimer(
             withTimeInterval: Self.interval, repeats: true
@@ -60,7 +115,7 @@ final class QuotaScraper: NSObject {
     /// interval to fire after wake — long enough that the displayed
     /// usage looks stale. Subscribe to `didWakeNotification` and force
     /// an immediate scrape so the menu-bar refreshes the moment the
-    /// user returns.
+    /// user returns. The clear-at-top in `scrape()` re-probes the API.
     private func observeWake() {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
@@ -72,17 +127,6 @@ final class QuotaScraper: NSObject {
                 self?.scrape()
             }
         }
-    }
-
-    func scrape() {
-        guard webView == nil else { return }
-        extractAttempts = 0
-        let webView = WebViewFactory.make(blockHeavy: true)
-        webView.navigationDelegate = self
-        webView.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
-        self.webView = webView
-        webView.load(URLRequest(url: Self.usageURL))
-        armWatchdog()
     }
 
     func appStateRef() -> AppState? {
