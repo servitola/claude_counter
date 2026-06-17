@@ -98,22 +98,58 @@ struct CookieBridgeTests {
 
     @Test func writeBackSkipsNonClaudeCookies() async {
         let (bridge, store) = makeBridge()
-        // Even when the response URL is claude.ai, a cookie whose Domain
-        // attribute points elsewhere must be dropped (defense in depth).
-        let foreignURL: URL = {
-            guard let url = URL(string: "https://example.com/") else {
-                preconditionFailure("Static URL string is invalid")
-            }
-            return url
-        }()
-
+        // Response URL is claude.ai, but the Set-Cookie carries an explicit
+        // foreign Domain attribute. Foundation parses it for a claude.ai URL,
+        // so the cookie survives parsing and our own isClaudeScoped guard is
+        // what must drop it (defense in depth).
         await bridge.writeBack(
             setCookieHeaders: ["foreign=nope; Path=/; Domain=example.com"],
-            responseURL: foreignURL
+            responseURL: Self.claudeURL
         )
 
         let cookies = await store.allCookies()
         #expect(cookies.allSatisfy { $0.name != "foreign" })
+    }
+
+    @Test func writeBackSkipsUnparseableButKeepsValidEntry() async {
+        let (bridge, store) = makeBridge()
+        // One garbage field, one valid claude.ai cookie. Parsing each field
+        // individually must skip the garbage and still write the valid one.
+        await bridge.writeBack(
+            setCookieHeaders: [
+                "=; =; ===",
+                "sessionKey=rotated-sk; Path=/; Domain=claude.ai"
+            ],
+            responseURL: Self.claudeURL
+        )
+
+        let cookies = await store.allCookies()
+        let match = cookies.first { $0.name == "sessionKey" }
+        #expect(match?.value == "rotated-sk")
+    }
+
+    @Test func writeBackParsesEachFieldWithCommaInExpires() async {
+        let (bridge, store) = makeBridge()
+        // Two rotating cookies, each with an Expires attribute whose value
+        // contains a comma (RFC 6265 date format). Comma-joining the fields
+        // before parsing would mis-split and silently drop one cookie; parsing
+        // each field individually must keep both.
+        await bridge.writeBack(
+            setCookieHeaders: [
+                "__cf_bm=rotated-bm; Path=/; Domain=claude.ai; "
+                    + "Expires=Wed, 09 Jun 2027 10:18:14 GMT",
+                "sessionKey=rotated-sk; Path=/; Domain=claude.ai; "
+                    + "Expires=Wed, 09 Jun 2027 10:18:14 GMT"
+            ],
+            responseURL: Self.claudeURL
+        )
+
+        let cookies = await store.allCookies()
+        let names = Set(cookies.map(\.name))
+        #expect(names.contains("__cf_bm"))
+        #expect(names.contains("sessionKey"))
+        #expect(cookies.first { $0.name == "__cf_bm" }?.value == "rotated-bm")
+        #expect(cookies.first { $0.name == "sessionKey" }?.value == "rotated-sk")
     }
 
     @Test func noCookieValueAppearsInCapturedLogSink() async {

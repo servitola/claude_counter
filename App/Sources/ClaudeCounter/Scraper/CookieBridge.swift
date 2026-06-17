@@ -63,14 +63,17 @@ struct CookieBridge {
     /// Non-claude cookies are skipped (defense in depth); unparseable entries
     /// are dropped silently.
     func writeBack(setCookieHeaders: [String], responseURL: URL) async {
-        // `HTTPCookie.cookies(withResponseHeaderFields:for:)` reads a single
-        // "Set-Cookie" value; join multiple fields with a comma the way a
-        // server would so each is parsed.
-        let joined = setCookieHeaders.joined(separator: ", ")
-        let parsed = HTTPCookie.cookies(
-            withResponseHeaderFields: ["Set-Cookie": joined],
-            for: responseURL
-        )
+        // Parse each Set-Cookie header field value INDIVIDUALLY. Comma-joining
+        // a batch is unsafe: RFC 6265 `Expires` values contain commas
+        // (e.g. "Wed, 09 Jun 2027 ..."), so a joined string can mis-split and
+        // silently drop a rotating cookie. One call per field, then aggregate.
+        // Unparseable fields contribute nothing and are skipped silently.
+        let parsed = setCookieHeaders.flatMap { field in
+            HTTPCookie.cookies(
+                withResponseHeaderFields: ["Set-Cookie": field],
+                for: responseURL
+            )
+        }
 
         var inserted = 0
         for cookie in parsed where Self.isClaudeScoped(cookie.domain) {
