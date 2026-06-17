@@ -1,0 +1,12 @@
+[
+  {
+    "id": 29414237,
+    "uuid": "8f859b21-0e14-4444-9de9-ccd652486f04",
+    "name": "user's Organization",
+    "settings": {
+      "claude_console_privacy": "default_private"
+    },
+    "capabilities": ["chat", "claude_pro"],
+    "rate_limit_tier": "default_claude_pro"
+  }
+]

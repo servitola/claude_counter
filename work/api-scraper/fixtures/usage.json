@@ -1,0 +1,80 @@
+{
+  "cinder_cove": null,
+  "extra_usage": {
+    "currency": null,
+    "daily": null,
+    "decimal_places": null,
+    "disabled_reason": null,
+    "is_enabled": false,
+    "monthly_limit": null,
+    "used_credits": null,
+    "utilization": null,
+    "weekly": null
+  },
+  "five_hour": {
+    "resets_at": "2026-06-17T13:49:59.900458+00:00",
+    "utilization": 3
+  },
+  "iguana_necktie": null,
+  "limits": [
+    {
+      "group": "session",
+      "is_active": false,
+      "kind": "session",
+      "percent": 3,
+      "resets_at": "2026-06-17T13:49:59.900458+00:00",
+      "scope": null,
+      "severity": "normal"
+    },
+    {
+      "group": "weekly",
+      "is_active": true,
+      "kind": "weekly_all",
+      "percent": 51,
+      "resets_at": "2026-06-17T18:59:59.900484+00:00",
+      "scope": null,
+      "severity": "normal"
+    },
+    {
+      "group": "weekly",
+      "is_active": false,
+      "kind": "weekly_scoped",
+      "percent": 8,
+      "resets_at": "2026-06-17T18:59:59.900493+00:00",
+      "scope": {
+        "model": {
+          "display_name": "Sonnet",
+          "id": null
+        },
+        "surface": null
+      },
+      "severity": "normal"
+    }
+  ],
+  "omelette_promotional": null,
+  "seven_day": {
+    "resets_at": "2026-06-17T18:59:59.900484+00:00",
+    "utilization": 51
+  },
+  "seven_day_cowork": null,
+  "seven_day_oauth_apps": null,
+  "seven_day_omelette": null,
+  "seven_day_opus": null,
+  "seven_day_sonnet": {
+    "resets_at": "2026-06-17T18:59:59.900493+00:00",
+    "utilization": 8
+  },
+  "spend": {
+    "disabled_reason": null,
+    "enabled": false,
+    "limit": null,
+    "percent": 0,
+    "severity": "normal",
+    "used": {
+      "amount_minor": 0,
+      "currency": "USD",
+      "exponent": 2
+    }
+  },
+  "tangelo": null
+}
