@@ -85,6 +85,16 @@ struct UsageAPIModelsTests {
         #expect(decodedWithout.resetsAt == withoutFractional)
     }
 
+    @Test func throwsOnMalformedResetsAt() throws {
+        let json = #"{"resets_at":"not-a-date","utilization":1}"#
+
+        #expect(throws: DecodingError.self) {
+            try UsageAPIModels.decoder.decode(
+                FlatWindow.self, from: Data(json.utf8)
+            )
+        }
+    }
+
     // MARK: - organizations.json
 
     @Test func decodesOrganizationsFixtureUuid() throws {
