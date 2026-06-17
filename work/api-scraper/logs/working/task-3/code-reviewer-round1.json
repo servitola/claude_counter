@@ -1,0 +1,17 @@
+{
+  "verdict": "approved",
+  "findings": [
+    {
+      "severity": "minor",
+      "issue": "Doc comment claims the key is \"namespaced to the app\", but the key value \"org.uuid\" has no app/bundle-id prefix. In production the store writes to UserDefaults.standard, which is already the app's sandboxed domain, so real collision risk is nil — the comment just overstates the namespacing. Either prefix the key (e.g. reverse-DNS) or soften the comment.",
+      "location": "App/Sources/ClaudeCounter/Scraper/OrgIDStore.swift:9-10",
+      "fix": "Reword the comment to \"unprefixed key in the app's standard defaults domain\" or change key to a bundle-id-prefixed string for forward safety. Optional."
+    },
+    {
+      "severity": "info",
+      "issue": "@unchecked Sendable is correctly justified: UserDefaults is documented thread-safe but not Sendable-annotated by Foundation, and the struct holds only an immutable `let defaults`. This is the minimal correct escape hatch and matches the strict-concurrency build posture.",
+      "location": "App/Sources/ClaudeCounter/Scraper/OrgIDStore.swift:8",
+      "fix": "No change needed."
+    }
+  ]
+}

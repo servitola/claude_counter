@@ -47,3 +47,30 @@ built locally inside the decode closure. (2) Added a one-line
 - `cd App && swift test` → 54 tests pass (50 pre-existing + 4 new), 8 suites
 - `cd App && swift build` → clean (strict concurrency, warnings-as-errors)
 - SwiftFormat (lint) + SwiftLint (strict) pre-commit hooks → pass
+
+---
+
+## Task 3: OrgIDStore (org uuid cache)
+
+**Status:** Done
+**Commit:** d119c0a
+**Agent:** orgstore-coder
+**Summary:** Added `App/Sources/ClaudeCounter/Scraper/OrgIDStore.swift` — a small
+pure-Foundation `struct` wrapping an injected `UserDefaults` (default `.standard`)
+with `read`/`write`/`invalidate` of a cached org UUID under one well-known key
+(`"org.uuid"`, exposed as `static let key`). Tests inject an isolated
+`UserDefaults(suiteName:)` (unique per test, torn down via
+`removePersistentDomain`) and assert no bleed into `.standard`.
+**Deviations:** Marked the type `@unchecked Sendable` rather than plain `Sendable`:
+`UserDefaults` is thread-safe but not `Sendable` in Foundation, so a plain
+conformance fails under strict concurrency. Behavior matches the spec.
+
+**Reviews:**
+
+*Round 1:*
+- code-reviewer: approved (1 low nit) → logs/working/task-3/code-reviewer-round1.json
+- test-reviewer: approved (4 minor edge-case suggestions) → logs/working/task-3/test-reviewer-round1.json
+
+**Verification:**
+- `cd App && swift test` → 58 tests pass (55 pre-existing + 3 new), 9 suites
+- `make ci` → clean (build, SwiftFormat lint, SwiftLint strict, periphery dead-code), exit 0

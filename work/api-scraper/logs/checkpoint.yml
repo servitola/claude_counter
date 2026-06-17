@@ -9,9 +9,9 @@ last_completed_wave: 0
 total_waves: 6
 
 tasks:
-  1: planned
+  1: done
   2: planned
-  3: planned
+  3: done
   4: planned
   5: planned
   6: planned
