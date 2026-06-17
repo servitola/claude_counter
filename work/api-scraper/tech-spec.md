@@ -276,12 +276,20 @@ claude.ai is not guaranteed to always include the fractional part.
 - HTTP classification: 403 + challenge HTML → `.needsCookieRefresh`;
   401 or redirect to `/login` → `.notLoggedIn`; **200 whose body is the
   login page → `.notLoggedIn`** (not `.decodeFailed`); 200 + JSON garbage
-  → `.decodeFailed`.
+  → `.decodeFailed`. The degenerate bodies (Cloudflare "Just a moment…"
+  HTML, login-page HTML, garbage JSON) are pinned as small inline string
+  fixtures in the test so classification is deterministic.
 - ISO-8601 parsing: with fractional seconds AND without → both yield the
   correct Date (two-formatter strategy from Data Models).
 - `OrgIDStore`: caches uuid, invalidates on failure — run against an
   **isolated `UserDefaults(suiteName:)`**, not `.standard`, to avoid
   shared-state bleed between tests.
+- Org discovery picks the right uuid when `/organizations` returns
+  **multiple** orgs (add a two-org fixture variant; assert the
+  active/first is chosen and cached).
+- `percent` rounding: `Double` → `Int` for `ClaudeUsage` truncates as
+  expected for fractional values (e.g. `2.9` → `2`), matching the existing
+  `QuotaParser` behavior.
 - Existing `QuotaParser`/JS tests remain green (fallback path intact).
 
 ### Integration tests
@@ -295,7 +303,9 @@ claude.ai is not guaranteed to always include the fractional part.
   `AppState.usage` ends up populated (assert end state, not just that a
   spy method was called).
 - Backoff: repeated `.notLoggedIn` does not re-enter the WebView path on
-  every tick (Decision 7); a wake/window-open event re-probes.
+  every tick (Decision 7) — assert an observable (WebView never
+  instantiated / fallback-invocation counter stays 0 across N ticks while
+  logged-out), then a wake/window-open event clears the flag and re-probes.
 
 ### E2E tests
 - None automated (requires a live logged-in claude.ai session; Cloudflare-

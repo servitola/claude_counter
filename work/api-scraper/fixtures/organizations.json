@@ -1,7 +1,7 @@
 [
   {
-    "id": 29414237,
-    "uuid": "8f859b21-0e14-4444-9de9-ccd652486f04",
+    "id": 10000001,
+    "uuid": "00000000-0000-4000-8000-000000000001",
     "name": "user's Organization",
     "settings": {
       "claude_console_privacy": "default_private"
