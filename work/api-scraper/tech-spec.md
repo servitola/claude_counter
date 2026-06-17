@@ -298,6 +298,9 @@ claude.ai is not guaranteed to always include the fractional part.
   then `/organizations/{uuid}/usage` → asserts a populated `ClaudeUsage`.
 - Cookie write-back: a stub response carrying `Set-Cookie` results in the
   cookie reaching the (test-injected) WebView cookie store.
+- Secret-log guard (Decision 6): drive a fetch through a captured log sink
+  with a sentinel cookie value; assert the sentinel never appears in any
+  emitted log line (header or body).
 - Fallback orchestration: API stub returns `.needsCookieRefresh`; assert
   the scraper enters the WebView path AND that, given a DOM-scrape success,
   `AppState.usage` ends up populated (assert end state, not just that a
