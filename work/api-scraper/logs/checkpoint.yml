@@ -1,0 +1,23 @@
+# Feature Execution Checkpoint
+skill: feature-execution
+feature: api-scraper
+feature_dir: work/api-scraper
+execution_plan: work/api-scraper/logs/execution-plan.md
+team_name: api-scraper
+
+last_completed_wave: 0
+total_waves: 6
+
+tasks:
+  1: planned
+  2: planned
+  3: planned
+  4: planned
+  5: planned
+  6: planned
+  7: planned
+  8: planned
+  9: planned
+  10: planned
+
+next_wave: 1

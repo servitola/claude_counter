@@ -1,0 +1,18 @@
+{
+  "verdict": "approved",
+  "summary": "Task 1 implementation is correct and production-ready. The four Decodable models match the usage.json/organizations.json fixtures exactly (CodingKeys, snake_case mapping, ignored extra keys), the two-formatter ISO-8601 date strategy is implemented and tested per tech-spec Data Models + Decision 5, the decoder is concurrency-sound under StrictConcurrency, and all 54 tests pass with clean build and strict lint. Both documented deviations (static var decoder; swiftlint disable for isActive: Bool?) are justified.",
+  "findings": [
+    {
+      "severity": "low",
+      "issue": "`decoder` is a computed `static var` that allocates a fresh JSONDecoder on every access. A get-only property conventionally signals cheap access; a factory function (e.g. `static func makeDecoder()`) would communicate the per-call allocation more idiomatically. The concurrency rationale (non-Sendable, fresh instance per call) is sound and the choice is functionally correct — purely a naming/idiom nit.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIModels.swift:21",
+      "fix": "Optional: rename to a `static func makeDecoder() -> JSONDecoder` to make the allocation explicit. No functional change required; the documented deviation is acceptable as-is."
+    },
+    {
+      "severity": "low",
+      "issue": "The two-formatter ISO-8601 strategy builds two new ISO8601DateFormatter instances on every date field decode (called once per resets_at). With a handful of dates per response this is negligible, but for hot paths it would be wasteful. Not a concern at the current call volume.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIModels.swift:31",
+      "fix": "Optional/FYI: no action needed for this feature's volume. If profiling ever flags it, the formatters could be hoisted to thread-safe statics (ISO8601DateFormatter is thread-safe for formatting once configured)."
+    }
+  ]
+}
