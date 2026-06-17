@@ -66,6 +66,31 @@ struct UsageMapperTests {
         #expect(usage.weeklyResetAt == sevenDayReset)
     }
 
+    @Test func missing_session_falls_back_to_five_hour() throws {
+        let fiveHourReset = try isoDate("2026-06-17T13:49:59.900458+00:00")
+        let response = UsageResponse(
+            limits: [limit(kind: "weekly_all", percent: 51, resetsAt: now)],
+            fiveHour: FlatWindow(resetsAt: fiveHourReset, utilization: 7),
+            sevenDay: nil
+        )
+
+        let usage = try #require(UsageMapper.map(response, now: now))
+        #expect(usage.currentPercent == 7)
+        #expect(usage.currentResetAt == fiveHourReset)
+    }
+
+    @Test func nil_resets_at_passes_through_without_failing_map() throws {
+        let response = UsageResponse(
+            limits: [limit(kind: "session", percent: 3, resetsAt: nil)],
+            fiveHour: nil,
+            sevenDay: nil
+        )
+
+        let usage = try #require(UsageMapper.map(response, now: now))
+        #expect(usage.currentPercent == 3)
+        #expect(usage.currentResetAt == nil)
+    }
+
     @Test func percent_double_truncates_to_int() throws {
         let response = UsageResponse(
             limits: [limit(kind: "session", percent: 2.9, resetsAt: now)],
