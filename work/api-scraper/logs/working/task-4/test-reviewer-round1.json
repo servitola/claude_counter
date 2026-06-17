@@ -1,0 +1,16 @@
+{
+  "verdict": "approved",
+  "summary": "All three TDD anchors are covered with meaningful, litmus-passing assertions. Host-scoping negative cases (notclaude.ai, claude.ai.evil.com) are explicitly rejected; the log-sink test is a real guard (seeds a sentinel name+value, drives read/header/write-back, asserts the seam actually fired AND the sentinel never appears). Tests use an isolated WKWebsiteDataStore.nonPersistent() store and are MainActor-isolated. Two minor gaps remain; none block.",
+  "findings": [
+    {
+      "severity": "low",
+      "gap": "writeBackSkipsNonClaudeCookies under-exercises the bridge's own skip logic. The code comment claims 'Even when the response URL is claude.ai', but the test passes responseURL=https://example.com with Domain=example.com. With a non-claude response URL, HTTPCookie.cookies(withResponseHeaderFields:for:) may already drop/rescope the foreign cookie before the bridge's isClaudeScoped filter is reached, so the test can pass even if the `where Self.isClaudeScoped` guard in writeBack() were removed. The intended defense-in-depth path (claude.ai response URL but Domain pointing elsewhere) is not actually proven.",
+      "suggestion": "Set responseURL to Self.claudeURL and use a Set-Cookie like 'foreign=nope; Path=/; Domain=evil.com', then assert no cookie named 'foreign' lands in the store. Mentally verify the litmus: removing the isClaudeScoped filter in writeBack should make this test fail. Also fix the misleading comment to match the scenario actually exercised."
+    },
+    {
+      "severity": "low",
+      "gap": "Malformed/unparseable Set-Cookie edge case (listed in task 4 Edge cases and the spec: 'skip that entry, keep the rest') has no test. writeBack joins multiple headers with ', ' and relies on HTTPCookie parsing to drop bad entries while keeping good ones; this 'keep the rest' branch is unverified.",
+      "suggestion": "Add a test passing setCookieHeaders with one garbage entry and one valid claude.ai entry (e.g. ['=; ;;garbage', 'sessionKey=ok; Path=/; Domain=claude.ai']) and assert the valid cookie is present in the store afterward (and the bridge does not crash). Confirms the partial-failure path."
+    }
+  ]
+}

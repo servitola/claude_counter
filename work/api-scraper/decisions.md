@@ -74,3 +74,38 @@ conformance fails under strict concurrency. Behavior matches the spec.
 **Verification:**
 - `cd App && swift test` → 58 tests pass (55 pre-existing + 3 new), 9 suites
 - `make ci` → clean (build, SwiftFormat lint, SwiftLint strict, periphery dead-code), exit 0
+
+---
+
+## Task 4: CookieBridge (read + write-back, host-scoped)
+
+**Status:** Done
+**Commit:** 1f330bd
+**Agent:** cookie-coder
+**Summary:** Added `App/Sources/ClaudeCounter/Scraper/CookieBridge.swift` — a
+`@MainActor struct` over an injectable `WKWebsiteDataStore` (default
+`.default()`). `read()` awaits `httpCookieStore.allCookies()` on MainActor and
+returns a plain `[HTTPCookie]` filtered to `claude.ai`-scoped cookies (bare host
+and leading-dot form, case-insensitive; lookalikes like `notclaude.ai` /
+`claude.ai.evil.com` rejected); `cookieHeader()` builds the `name=value; …`
+request header. `writeBack(setCookieHeaders:responseURL:)` parses via
+`HTTPCookie.cookies(withResponseHeaderFields:for:)` and inserts only
+`claude.ai`-scoped cookies via `setCookie`, skipping foreign/unparseable
+entries. Per Decision 6, logging goes through an injectable `@MainActor (String)
+-> Void` seam (default → `AppLog.scraper.debug` with `privacy: .public`) and
+emits counts/host only — never a cookie name or value.
+**Deviations:** none. (Logging seam implemented as an injectable closure, one of
+the explicitly-allowed mechanisms in the task.)
+
+**Reviews:**
+
+*Round 1:*
+- code-reviewer: approved (2 minor: comma-join Set-Cookie, redundant re-read) → logs/working/task-4/code-reviewer-round1.json
+- security-auditor: approved (Decision 6 + exact host-scoping verified; 2 minor) → logs/working/task-4/security-auditor-round1.json
+- test-reviewer: approved (2 low test gaps) → logs/working/task-4/test-reviewer-round1.json
+
+*Round 2 (after fix 90b9426):*
+- Per-field Set-Cookie parsing (deterministic, no Expires-comma mis-split); strengthened non-claude write-back test (foreign Domain on claude.ai URL); added unparseable-but-keep-valid test. 65 tests, make ci clean.
+
+**Verification:**
+- `cd App && swift test` → 65 tests pass, `make ci` → clean, exit 0

@@ -1,0 +1,38 @@
+{
+  "verdict": "approved",
+  "summary": {
+    "totalFindings": 2,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "minor": 2
+  },
+  "decisionChecks": {
+    "decision6_noSecretLogging": "PASS - the only two log call sites interpolate a static host constant and an Int count; no cookie name or value is ever interpolated into a log string on any path (read/cookieHeader/writeBack). cookieHeader() builds name=value pairs but only as a return value, never logged. The .public default on the AppLog closure is safe here because the logged payload is constant-host + integer only.",
+    "decision6_logSinkGuardGenuine": "PASS - noCookieValueAppearsInCapturedLogSink seeds a sentinel name+value, drives read + cookieHeader + writeBack, asserts the sink is non-empty (non-vacuous, proves the seam fired) then asserts neither sentinel substring appears in any captured line. Real regression guard, not theater.",
+    "decision2_hostScoping": "PASS - isClaudeScoped uses EXACT compare after stripping one leading dot, not a suffix/contains match. notclaude.ai, claude.ai.evil.com, example.com all rejected; claude.ai and .claude.ai accepted. Verified by readReturnsOnlyClaudeAiCookies. No suffix-match bypass foot-gun.",
+    "decision2_writeBackDefenseInDepth": "PASS - writeBack re-applies isClaudeScoped to every parsed cookie's own Domain attribute (not just the response URL), dropping off-host cookies even when the response URL is claude.ai. Verified by writeBackSkipsNonClaudeCookies.",
+    "noSecretToDisk": "PASS - no persistence, no debug dump, no file write; cookies only flow store<->memory. Tests use nonPersistent() store, never .default().",
+    "noOffHostLeakage": "PASS - read returns only claude.ai cookies, so off-host attachment is impossible at this layer. Note: redirect-header stripping (Decision 2) lives in Task 5/UsageAPIClient, out of scope for this file."
+  },
+  "findings": [
+    {
+      "severity": "minor",
+      "issue": "writeBack joins multiple Set-Cookie header fields with ', ' before handing them to HTTPCookie.cookies(withResponseHeaderFields:for:). RFC 6265 cookie values and the Expires attribute (e.g. 'Expires=Wed, 09 Jun 2027 10:18:14 GMT') legitimately contain commas, so a naive comma-join can mis-split a multi-cookie batch and silently drop or corrupt a rotating cookie (e.g. a refreshed sessionKey). Not a confidentiality/leak issue, but a robustness gap that can let the store go stale and force extra WebView fallbacks. The single-header case (the spike's observed shape) is unaffected.",
+      "recommendation": "Prefer parsing each Set-Cookie field independently (one HTTPCookie.cookies(withResponseHeaderFields:for:) call per field, then concatenate the results) instead of comma-joining. Add a test with two Set-Cookie fields where one carries an Expires date containing a comma to lock in correct splitting.",
+      "location": "App/Sources/ClaudeCounter/Scraper/CookieBridge.swift:62-66 (writeBack join)"
+    },
+    {
+      "severity": "minor",
+      "issue": "Host scoping is intentionally an exact match, so any future claude.ai subdomain (e.g. api.claude.ai, app.claude.ai) that legitimately holds the session cookie would be excluded. This is the SAFE default for a security boundary and matches the task spec exactly, but it is an implicit assumption worth recording: if Cloudflare/Anthropic ever moves the session cookie to a subdomain, cookies will silently stop attaching and the app degrades to the WebView fallback rather than failing open. No action required now; documenting so it is a conscious decision, not an accident.",
+      "recommendation": "Leave exact-match as-is (correct security posture). If a subdomain is ever required, widen deliberately to an explicit allowlist of known hosts or a vetted registrable-domain check (eTLD+1), never a bare hasSuffix(\"claude.ai\") which would re-open the notclaude.ai / claude.ai.evil.com bypass.",
+      "location": "App/Sources/ClaudeCounter/Scraper/CookieBridge.swift:88-91 (isClaudeScoped)"
+    }
+  ],
+  "owaspNotes": {
+    "A01_brokenAccessControl": "N/A - no authz logic in this component.",
+    "A02_cryptographicFailures": "No secrets persisted or weakly stored; cookies stay in WebKit's store.",
+    "A09_securityLogging": "PASS - sensitive-data-in-logs explicitly prevented and test-guarded (Decision 6).",
+    "A10_ssrf": "Host-scoping prevents cookie attachment off-host at this layer; the redirect Cookie-header strip is owned by Task 5 and must be reviewed there."
+  }
+}
