@@ -1,0 +1,29 @@
+{
+  "validator": "task-validator",
+  "scope": "cross-task-integration",
+  "batch": "cross-task",
+  "verdict": "approved",
+  "findings": [],
+  "checks": {
+    "dependency_dag": {
+      "result": "pass",
+      "detail": "Edges: 2->1, 5->{1,2,3,4}, 6->5, {7,8,9}->6, 10->{7,8,9}. No cycles. Every depends_on references an existing task. Every consumer wave > producer wave (T2 w2>T1 w1; T5 w3>T1/T2/T3/T4 w1-2; T6 w4>T5 w3; T7/8/9 w5>T6 w4; T10 w6>T7/8/9 w5)."
+    },
+    "shared_resource_ownership": {
+      "result": "pass",
+      "detail": "FlatWindow/UsageResponse/UsageAPIModels: sole owner T1; consumers T2,T5 each depend_on [1] and are instructed 'reuse, do not redefine'. UsageFetchResult: declared T5; consumer T6 depends_on [5]. OrgIDStore (org-uuid cache): owner T3; consumer T5 depends_on includes 3. URLSession: owned solely by T5 (UsageAPIClient). CookieBridge + WKWebsiteDataStore cookie store: owner T4 (read+write-back); consumer T5 depends_on [4]. Safari UA: T5 exposes the single WebViewFactory.safariUserAgent constant; T6 reads the same constant. Every consumer declares depends_on on its owner."
+    },
+    "no_competing_instances": {
+      "result": "pass",
+      "detail": "No two tasks create their own instance of any shared resource. The WKWebsiteDataStore.default() cookie store is a system singleton read via CookieBridge (T4) and the existing WebView path (T6); neither creates a competing jar. URLSession is created only in T5 and configured with no cookie jar (httpCookieStorage=nil), so it cannot drift from the WebView store."
+    },
+    "same_wave_file_collisions": {
+      "result": "pass",
+      "detail": "W1{1,3,4}: UsageAPIModels.swift+Package.swift+Fixtures (T1), OrgIDStore.swift (T3), CookieBridge.swift (T4) - disjoint. W2{2}: UsageMapper.swift - alone. W3{5}: UsageAPIClient.swift+WebViewFactory.swift - alone. W4{6}: QuotaScraper.swift, QuotaScraper+Lifecycle.swift, QuotaScraper+Navigation.swift, StatusBarController+Menu.swift - alone. W5{7,8,9}: analysis-only, modify nothing. W6{10}: QA, modifies nothing. WebViewFactory.swift is written by T5 (w3) and only read by T6 (w4); different waves and T6 depends_on [5], so the write lands first - no collision."
+    }
+  },
+  "stats": {
+    "tasks_checked": 10,
+    "issues_found": 0
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "validator": "reality-checker",
+  "batch": [5, 6],
+  "iteration": 2,
+  "status": "approved",
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 5,
+      "issue": "Task 5 Details section states WebViewFactory.safariUserAgent is 'private static let safariUserAgent (lines ~54-58)'. Verified correct: the field is at line 54 as 'private static let safariUserAgent'. WebViewFactory.swift now appears in the 'Code to modify' list (line 147-148) with an explicit note to change access from 'private static let' to 'static let / internal static'. Round-1 critical finding is RESOLVED.",
+      "fix": "No action needed — fix confirmed in place."
+    },
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 6,
+      "issue": "Task 6 references openWindow() at StatusBarController+Menu.swift:36-38. Verified: openWindow() is at line 36, body is 'UsageWindow.shared.show()' at line 37 — no scraper.scrape() call today. Task correctly describes this as a gap to fix (add scraper.scrape() after show()). refresh() is at lines 40-41 and already calls scraper.scrape(). Line refs are accurate. Round-1 critical hallucination is RESOLVED.",
+      "fix": "No action needed — references are now correct."
+    },
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 6,
+      "issue": "Task 6 step 2 references the existing scrape() body at 'QuotaScraper.swift:77-86'. Verified: scrape() is at lines 77-86, observeWake() is at lines 64-75, start() timer block at lines 48-51. All cited line ranges are accurate.",
+      "fix": "No action needed — line refs match actual code."
+    },
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 6,
+      "issue": "Task 6 step 6 (re-probe entry points) says observeWake() 'already forces self?.scrape()'. Verified at lines 64-75: the didWakeNotification handler calls self?.scrape() inside MainActor.assumeIsolated. The task's design (clear loggedOut at the top of scrape() rather than at the wake site) is therefore valid and requires no extra wiring at observeWake(). Design is coherent.",
+      "fix": "No action needed — confirmed correct."
+    },
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 6,
+      "issue": "Task 6 step 4 references '/login detection at QuotaScraper+Navigation.swift:14-18'. Verified: the /login check is at lines 14-18 (url.contains('/login') → notice + tearDown + return). The task instructs adding 'loggedOut = true' there. The instruction is accurate and feasible — the extension can set a property on self because QuotaScraper is @MainActor and loggedOut will be a stored property on the same class.",
+      "fix": "No action needed — confirmed correct."
+    },
+    {
+      "severity": "minor",
+      "category": "feasibility",
+      "task": 6,
+      "issue": "Task 6 description says 'scrape()' currently has a 'guard webView == nil' at its start (line 78). Verified: this guard is present. The task correctly models that the existing guard must be replaced/restructured into the new isFetching guard + API-first flow + runWebViewFallback() that carries the guard forward. No contradiction with actual code.",
+      "fix": "No action needed — confirmed correct."
+    }
+  ],
+  "stats": {
+    "tasks_checked": 2,
+    "claims_verified": 18,
+    "issues_found": 0,
+    "critical_findings": 0,
+    "major_findings": 0,
+    "minor_findings": 6,
+    "round1_criticals_resolved": 2
+  }
+}

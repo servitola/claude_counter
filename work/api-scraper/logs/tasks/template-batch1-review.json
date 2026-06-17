@@ -1,0 +1,84 @@
+{
+  "validator": "task-validator",
+  "iteration": 2,
+  "batch": [1, 2, 4, 5, 6],
+  "status": "approved",
+  "round1_findings_resolution": [
+    {
+      "task": 1,
+      "round1_severity": "major",
+      "round1_issue": "Flat-field ownership unresolved: UsageResponse only modeled limits[] and excluded five_hour/seven_day that Task 2's fallback AC required.",
+      "status": "RESOLVED",
+      "evidence": "Task 1 now declares FlatWindow plus optional UsageResponse.fiveHour/.sevenDay (What to do step 1, Details/Files), with matching AC line 108-113 and TDD anchor decodesUsageFixtureFlatWindows (utilization 3.0/51.0, parsed resetsAt). Single-source-of-truth note: Task 2 reuses, does not redefine."
+    },
+    {
+      "task": 2,
+      "round1_severity": "major",
+      "round1_issue": "Depended on flat fields Task 1 did not produce; pushed model-shape decision to execution time.",
+      "status": "RESOLVED",
+      "evidence": "Task 2 Dependencies and What-to-do explicitly consume Task 1's UsageLimit/UsageResponse/FlatWindow/fiveHour/sevenDay with 'do not redefine'. Contract is pinned at decomposition time; no runtime renegotiation language remains."
+    },
+    {
+      "task": 2,
+      "round1_severity": "minor",
+      "round1_issue": "decisions.md referenced in Post-completion but not linked in Context Files.",
+      "status": "RESOLVED",
+      "evidence": "decisions.md now linked in Context Files (5.md line 97)."
+    },
+    {
+      "task": 5,
+      "round1_severity": "minor",
+      "round1_issue": "11 acceptance criteria, far above the <=3 guideline.",
+      "status": "RESOLVED",
+      "evidence": "Collapsed to 3 grouped, testable AC (lines 128-136): (1) URLSession no-cookie-jar + off-host redirect strip, (2) org discovery + caching, (3) full classification matrix + no-secret logging. Each maps to TDD anchors."
+    },
+    {
+      "task": 5,
+      "round1_severity": "minor",
+      "round1_issue": "decisions.md not linked though referenced in Post-completion.",
+      "status": "OPEN",
+      "evidence": "Post-completion still references decisions.md (5.md line 238) but Context Files (lines 138-158) omits a [decisions.md](../decisions.md) link. Tasks 1, 2, 4, 6 all link it; Task 5 is the lone inconsistency. Carried forward as the single residual finding below."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "content",
+      "task": 5,
+      "section": "Context Files",
+      "issue": "decisions.md is referenced in Post-completion (line 238) but not linked in Context Files. Tasks 1, 2, 4, and 6 all link it; Task 5 is the only one that does not. This is the lone unresolved round-1 finding.",
+      "fix": "Add `- [decisions.md](../decisions.md)` to the Context Files list in 5.md (note: file now exists)."
+    },
+    {
+      "severity": "minor",
+      "category": "content",
+      "task": 6,
+      "section": "Acceptance Criteria",
+      "issue": "9 acceptance criteria, above the <=3 grouped-criteria guideline. They are observable end-states for a cohesive single-method orchestration rewrite (success/needsCookieRefresh/decodeFailed/notLoggedIn/transport branches + timer/watchdog preservation + DOM-fallback retention + no-secret logging) and each traces to tech-spec Decision 3/4/7. Not a split candidate (orchestrator is one logical unit), but the count exceeds the budget. New observation, not a round-1 finding.",
+      "fix": "Optionally collapse the closely-related branch criteria into grouped statements (e.g. merge the two re-probe/backoff criteria, or the timer+DOM-retention criteria). Acceptable as-is given cohesion and traceability."
+    }
+  ],
+  "notes": [
+    "All four round-1 findings tied to the 5 re-validated tasks are RESOLVED except one Task-5 minor (decisions.md link). Zero critical, zero major remain.",
+    "Task 1 Double-literal fix verified: AC and TDD use 3.0/51.0; edge cases call out Int-vs-Double for percent/utilization.",
+    "Task 2 HOW/pseudocode check: implementation hints are declarative ('shape it like QuotaParser ... do not copy its body'); no code blocks, algorithms, or pseudocode leaked.",
+    "Task 4 wave 1 + depends_on [] accepted per instruction; promotion rationale documented inline (4.md lines 141-144). Log-capture seam present in What-to-do and TDD anchor test_noCookieValueAppearsInCapturedLogSink (Decision 6).",
+    "Task 5 WebViewFactory.swift now in Files-to-modify (lines 147, 182-184) to expose the shared Safari UA; verified WebViewFactory.swift exists on disk.",
+    "Task 6 TDD anchors all assert observable end-state (AppState.usage, scraper.webView, instantiation counter), explicitly 'not spy calls'; code refs (line numbers, method names) cross-checked against real files QuotaScraper.swift and StatusBarController+Menu.swift which exist on disk.",
+    "Frontmatter/depends_on/wave consistency: t1 wave1 deps[], t2 wave2 deps[1], t4 wave1 deps[], t5 wave3 deps[1,2,3,4], t6 wave4 deps[5]. All deps reference existing tasks; each dependent task has wave > dependency wave; no cycles. verify arrays valid (t5=[smoke] with Smoke section, t6=[user] with User section, others []).",
+    "skills/reviewers consistency: all skills=[code-writing]; reviewers match Reviewers sections and skill->reviewer mapping (security-auditor present on cookie tasks 4 and 5; absent on pure-logic tasks 1,2,6 which is acceptable).",
+    "decisions.md and fixtures (usage.json, organizations.json) confirmed present on disk.",
+    "No template placeholders, TODO/FIXME/TBD markers; section order matches template across all five tasks.",
+    "AC/TDD carry-forward from tech-spec Implementation Tasks holds; Files-to-modify match tech-spec entries.",
+    "Shared Resources compliance unchanged and valid: OrgUUID cache owner=Task3, cookie store owner=Task4, URLSession owner=Task5; Task5 declares depends_on [1,2,3,4]; Task6 depends_on [5]."
+  ],
+  "stats": {
+    "tasks_checked": 5,
+    "issues_found": 2,
+    "critical": 0,
+    "major": 0,
+    "minor": 2,
+    "round1_resolved": 4,
+    "round1_open": 1
+  }
+}
