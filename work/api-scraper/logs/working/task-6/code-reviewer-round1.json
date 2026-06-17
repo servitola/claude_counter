@@ -1,0 +1,30 @@
+{
+  "verdict": "approved",
+  "summary": "Task 6 API-first orchestration is correct, race-free, and faithful to the tech-spec (Architecture, Decision 3, Decision 7). API .success populates AppState with NO WebView; .needsCookieRefresh/.decodeFailed fall through to the intact ephemeral WebView+DOM-scrape pipeline; .notLoggedIn arms the backoff and suppresses the fallback; .transport leaves state untouched. The fallback pipeline (Lifecycle/Navigation/Extract, QuotaParser, QuotaPayload, watchdog, teardown, handleFailure) is preserved unchanged. make ci is fully green: build, 92 tests, SwiftLint/format, and periphery dead-code (the periphery:ignore removal is justified — CookieSource.bridged is now reachable via makeProductionFetch). Concurrency is sound: the class is @MainActor, all of loggedOut/isFetchingNow/webView are mutated only on MainActor, the off-main fetchUsage() result is re-applied via MainActor.run, and single-flight (isFetchingNow) + the webView==nil guard prevent both API-task overlap and double WebView builds.",
+  "findings": [
+    {
+      "severity": "low",
+      "issue": "Behavior change in the fallback retry path is undocumented. handleFailure() (QuotaScraper+Lifecycle.swift:52) and the /login teardown still re-enter via scrape(), which is now the API-first orchestrator rather than the old direct WebView build. So a WebView navigation failure now retries through the API path (and clears loggedOut at the top), instead of rebuilding the WebView directly as it did pre-Task-6. This is defensible and arguably an improvement (API-first re-probe; watchdog/teardown still bound the WebView), and tests are green, but it is a semantic change to the documented 'retry-once' fallback behavior that the task narrative did not call out.",
+      "location": "App/Sources/ClaudeCounter/Scraper/QuotaScraper+Lifecycle.swift:47-58 (handleFailure -> scrape); QuotaScraper+Orchestrator.swift:12-33",
+      "fix": "No code change required. Note the deviation in decisions.md post-completion: 'fallback navigation failures now retry via the API orchestrator (scrape()), not a direct WebView rebuild — intentional under API-first.' Optionally add a one-line test asserting that a fallback failure re-probes the API on the retry tick."
+    },
+    {
+      "severity": "low",
+      "issue": "Minor logging inconsistency / noise: .success logs at .debug while .transport (a routine transient miss that recurs every 60s while offline) logs at .notice, and runWebViewFallback emits a .notice on every suppressed tick while logged out. Per Decision 7 the logged-out state should be quiet; a .notice each suppressed tick is value-free (no secret leak — Decision 6 is honored) but is more chatter than 'quiet-when-logged-out' implies.",
+      "location": "App/Sources/ClaudeCounter/Scraper/QuotaScraper+Orchestrator.swift:44,62,72",
+      "fix": "Optional: drop the per-tick suppression/transport lines to .debug so steady-state logged-out/offline operation stays quiet, reserving .notice for state transitions."
+    },
+    {
+      "severity": "info",
+      "issue": "Documented deviations reviewed and accepted: (1) extra QuotaScraper+Orchestrator.swift file instead of editing QuotaScraper.swift in place — keeps each file under the length limit and isolates the orchestration seam; clean. (2) Closure-seam injection (fetchUsage / runFallbackOverride) instead of a protocol — lighter than a protocol for a two-method surface, @Sendable/@MainActor annotations are correct, tests inject scripted results and count fallback entries via the seam without touching WebKit. (3) periphery:ignore removal on CookieSource.bridged — correct now that makeProductionFetch() references it; periphery --strict confirms no unused code.",
+      "location": "App/Sources/ClaudeCounter/Scraper/QuotaScraper+Orchestrator.swift; QuotaScraper.swift:74-91; UsageAPIClient.swift:36-47",
+      "fix": "None — accepted as sound engineering choices consistent with the task's TDD anchor (closure seam matching whatever Task 5 exposed)."
+    },
+    {
+      "severity": "info",
+      "issue": "Test coverage maps the TDD anchors 1:1 and asserts observable end state (AppState.usage, scraper.webView, fallback counter) rather than spy calls, exactly as required. repeatedNotLoggedInKeepsWebViewNilAcrossTicks runs 4 ticks; wake/window-open re-probe tests exercise the clear-at-top. One gap: no test exercises the isFetchingNow single-flight guard (overlapping triggers) or the /login-detection backoff path in Navigation — both are correct by inspection but unverified by an automated assertion.",
+      "location": "App/Tests/ClaudeCounterTests/QuotaScraperOrchestrationTests.swift",
+      "fix": "Optional (defer to test-reviewer): add a single-flight test (fire scrape() twice before awaiting; assert fetch invoked once / counter unchanged) and a fallback-/login-sets-backoff test."
+    }
+  ]
+}

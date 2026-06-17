@@ -199,3 +199,58 @@ headers.
 - `cd App && swift test --filter UsageAPIClient` → pass; full suite → 85 tests pass
 - `make ci` (format-check, lint --strict, test, dead-code) → clean, exit 0
 - Live smoke (lead, real URLSession + logged-in WKWebsiteDataStore cookies, Safari UA): GET /api/organizations → 200 (uuid 8f859b21…); GET /organizations/{uuid}/usage → 200, limits[] = session/weekly_all/weekly_scoped with ISO-8601 resets_at — exact shape UsageAPIClient+UsageMapper consume. curl→403, URLSession→200 confirmed.
+
+---
+
+## Task 6: QuotaScraper orchestration (API-first, WebView fallback, backoff)
+
+**Status:** Done
+**Commit:** 625e150
+**Agent:** orchestration-coder
+**Summary:** Rewired `QuotaScraper.scrape()` into an API-first orchestrator
+(new `QuotaScraper+Orchestrator.swift`): each tick clears the Decision-7
+backoff, probes `UsageAPIClient.fetch()` off-main, and applies the classified
+`UsageFetchResult` on MainActor. `.success` → `AppState.usage`, NO WebView;
+`.needsCookieRefresh`/`.decodeFailed` → the retained ephemeral-WebView
+DOM-scrape fallback (`runWebViewFallback()` → `buildEphemeralWebView()`, the
+old `scrape()` body verbatim); `.notLoggedIn` → set `loggedOut` (suppresses
+the fallback) value-free; `.transport` → leave state, retry next tick, no
+WebView. The 60 s timer (+10 s tolerance), watchdog, wake observer, retry
+semantics, and the whole DOM pipeline are intact. `/login` detection in
+`QuotaScraper+Navigation.swift` now also sets `loggedOut`. `openWindow()` calls
+`scraper.scrape()` after `show()` (Decision-7 window-open re-probe); wake and
+"Refresh Now" re-probe for free via the clear-at-top.
+**Injectability:** two closure seams on `QuotaScraper.init` — `fetchUsage`
+(default → production `UsageAPIClient` via `makeProductionFetch()`, wiring
+`OrgIDStore` + `CookieSource.bridged(CookieBridge())`) and `runFallback`
+(default → real WebView pipeline). Tests script `UsageFetchResult`s and a
+counting/AppState-populating fallback stub, asserting observable end state
+(`AppState.usage`, `scraper.webView`, fallback counter) — never spy calls.
+An `awaitInFlight()` test hook awaits the single-flight orchestrator Task.
+**Deviations:**
+- Added `QuotaScraper+Orchestrator.swift` (not in the named file list) to keep
+  `QuotaScraper.swift` under SwiftLint `file_length` (≤300). The orchestrator,
+  fallback, production-seam factory, and `awaitInFlight()` live there.
+- Used closure seams (not a protocol) for injection — `UsageAPIClient` is a
+  value-type struct with a free `fetch()`, so a closure is the lightest seam
+  and keeps the scraper free of WebKit/`@MainActor` leakage into the API path.
+- `scrape()` stays synchronous (launches an internal `Task`) so all existing
+  callers (timer, wake, `refresh()`, new window-open) compile unchanged; an
+  `isFetchingNow` single-flight guard prevents stacking.
+- Removed the now-superfluous `// periphery:ignore` on `CookieSource.bridged`
+  (Task 5 placeholder) since Task 6 references it — required for periphery
+  `--strict` to pass; touched UsageAPIClient.swift for that one-line change.
+
+**Reviews:**
+
+*Round 1:*
+- code-reviewer: approved (low/info only) → logs/working/task-6/code-reviewer-round1.json
+- test-reviewer: changes_requested (3 HIGH: single-flight, suppression guard never reached, /login backoff untested) → logs/working/task-6/test-reviewer-round1.json
+
+*Round 2 (after fix bddbd76):*
+- Fixed real backoff logic bug: `scrape()` cleared `loggedOut` every tick (incl. 60s timer), making Decision-7 suppression dead. Now flag persists across automatic ticks; cleared only by explicit `forceRefresh()` (wired to wake/Refresh-Now/window-open) and auto-cleared on `.success`. Added 5 tests (suppression fires, persists across N ticks, forceRefresh re-enables, /login arms backoff, single-flight) — litmus-verified. 97 tests, make ci clean.
+
+**Verification:**
+- `cd App && swift test` → 97 tests pass, 14 suites
+- `make ci` (format-check, lint --strict, test, periphery dead-code) → clean, exit 0
+- User verify-app run (logged-in menu-bar parity + Activity Monitor: no per-tick WebContent/GPU helper, idle RSS below ~82 MB) deferred to lead/Phase 4.
