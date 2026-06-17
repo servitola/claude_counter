@@ -6,24 +6,52 @@ import Foundation
 /// challenge check and every auth check (401, `/login` redirect, login HTML body)
 /// run BEFORE any JSON decode, so a login page never resolves to `.decodeFailed`.
 extension UsageAPIClient {
-    /// Classify a `/usage` response. The challenge check and all auth checks
-    /// (401, /login redirect, login HTML body) run BEFORE any JSON decode.
-    func classifyUsage(data: Data, response: HTTPURLResponse) async -> UsageFetchResult {
+    /// Shared HTTP-response classification preamble run by BOTH the usage call
+    /// and the org-discovery call BEFORE any JSON decode, so the two paths can
+    /// never diverge: 403 + Cloudflare challenge → `.needsCookieRefresh`; 401 /
+    /// `/login` redirect / 200-login-page body → `.notLoggedIn`; any other
+    /// non-200 → `.decodeFailed`. Returns `nil` when the response is a 200 that
+    /// is neither a challenge nor a login page — i.e. the caller should proceed
+    /// to decode. `label` tags the log line with the call site ("usage" /
+    /// "org discovery"). The `.notLoggedIn` branch is the only one that
+    /// invalidates the cache (a stale uuid is useless once logged out); the
+    /// challenge branch leaves the cache intact (only cookies are stale).
+    func classifyResponsePreamble(
+        data: Data,
+        response: HTTPURLResponse,
+        label: String
+    )
+        -> UsageFetchResult?
+    {
         if response.statusCode == 403, isChallenge(data: data, response: response) {
-            log("usage classified=needsCookieRefresh status=403")
+            log("\(label) classified=needsCookieRefresh status=403")
             // Cache stays — the uuid is still valid; only cookies are stale.
             return .needsCookieRefresh
         }
 
         if let authResult = authResult(for: data, response: response) {
             orgStore.invalidate()
-            log("usage classified=notLoggedIn status=\(response.statusCode)")
+            log("\(label) classified=notLoggedIn status=\(response.statusCode)")
             return authResult
         }
 
         guard response.statusCode == 200 else {
-            log("usage non-200 status=\(response.statusCode)")
+            log("\(label) non-200 status=\(response.statusCode)")
             return .decodeFailed
+        }
+
+        return nil
+    }
+
+    /// Classify a `/usage` response. The challenge check and all auth checks
+    /// (401, /login redirect, login HTML body) run BEFORE any JSON decode.
+    func classifyUsage(data: Data, response: HTTPURLResponse) async -> UsageFetchResult {
+        if
+            let preamble = classifyResponsePreamble(
+                data: data, response: response, label: "usage"
+            )
+        {
+            return preamble
         }
 
         guard

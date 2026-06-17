@@ -91,6 +91,82 @@ extension UsageAPIClientTests {
         }
     }
 
+    // MARK: - Discovery-call classification (org-discovery preamble)
+
+    /// 403 + Cloudflare challenge on `GET /api/organizations` (cold start with an
+    /// empty `OrgIDStore` and an expired `cf_clearance`) must classify as
+    /// `.needsCookieRefresh`, NOT `.decodeFailed`. Litmus: before the shared
+    /// preamble fix this surfaced `.decodeFailed` (the non-200 guard).
+    @Test func discoveryChallengeHTMLReturnsNeedsCookieRefresh() async throws {
+        let isolated = try IsolatedStore()
+        defer { isolated.tearDown() }
+        // No seeded uuid → discovery runs and hits the challenge.
+        let client = makeStubbedClient(
+            routes: [
+                .html(
+                    path: "/api/organizations",
+                    status: 403,
+                    body: UsageAPIClientFixtures.challengeHTML
+                )
+            ],
+            store: isolated.store
+        )
+        defer { StubURLProtocol.reset() }
+
+        let result = await client.fetch()
+        guard case .needsCookieRefresh = result else {
+            Issue.record("Expected .needsCookieRefresh, got \(result)")
+            return
+        }
+        // Cache stays untouched — only cookies are stale (it was empty anyway).
+        #expect(isolated.store.read() == nil)
+    }
+
+    /// 401 on `GET /api/organizations` must classify as `.notLoggedIn`, NOT
+    /// `.decodeFailed`. Litmus: before the shared preamble fix this surfaced
+    /// `.decodeFailed`.
+    @Test func discovery401ReturnsNotLoggedIn() async throws {
+        let isolated = try IsolatedStore()
+        defer { isolated.tearDown() }
+        let client = makeStubbedClient(
+            routes: [.html(path: "/api/organizations", status: 401, body: "{}")],
+            store: isolated.store
+        )
+        defer { StubURLProtocol.reset() }
+
+        let result = await client.fetch()
+        guard case .notLoggedIn = result else {
+            Issue.record("Expected .notLoggedIn, got \(result)")
+            return
+        }
+        #expect(isolated.store.read() == nil)
+    }
+
+    /// A 200 login-page body on `GET /api/organizations` must classify as
+    /// `.notLoggedIn` (BEFORE the JSON decode), NOT `.decodeFailed`.
+    @Test func discoveryLoginPageReturnsNotLoggedIn() async throws {
+        let isolated = try IsolatedStore()
+        defer { isolated.tearDown() }
+        let client = makeStubbedClient(
+            routes: [
+                .html(
+                    path: "/api/organizations",
+                    status: 200,
+                    body: UsageAPIClientFixtures.loginHTML
+                )
+            ],
+            store: isolated.store
+        )
+        defer { StubURLProtocol.reset() }
+
+        let result = await client.fetch()
+        guard case .notLoggedIn = result else {
+            Issue.record("Expected .notLoggedIn, got \(result)")
+            return
+        }
+        #expect(isolated.store.read() == nil)
+    }
+
     @Test func garbageJSONReturnsDecodeFailed() async throws {
         let isolated = try IsolatedStore()
         defer { isolated.tearDown() }

@@ -151,15 +151,16 @@ private extension UsageAPIClient {
             return .failed(.transport(error))
         }
 
-        if let authResult = authResult(for: data, response: response) {
-            orgStore.invalidate()
-            log("org discovery auth failure status=\(response.statusCode)")
-            return .failed(authResult)
-        }
-
-        guard response.statusCode == 200 else {
-            log("org discovery non-200 status=\(response.statusCode)")
-            return .failed(.decodeFailed)
+        // Same challenge/auth/non-200 preamble the usage call runs, so a 403
+        // Cloudflare challenge on cold start (empty cache + expired
+        // `cf_clearance`) classifies as `.needsCookieRefresh`, not
+        // `.decodeFailed`, and a 401/login page classifies as `.notLoggedIn`.
+        if
+            let preamble = classifyResponsePreamble(
+                data: data, response: response, label: "org discovery"
+            )
+        {
+            return .failed(preamble)
         }
 
         guard
