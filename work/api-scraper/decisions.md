@@ -143,3 +143,59 @@ verbatim. Behavior matches the spec exactly.
 
 **Verification:**
 - `cd App && swift test` → 72 tests pass · `make ci` → clean, exit 0
+
+---
+
+## Task 5: UsageAPIClient (URLSession fetch + discovery + classification)
+
+**Status:** Done
+**Commit:** e114b94
+**Agent:** client-coder
+**Summary:** Added `App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift` — the
+networking core. Owns one `URLSession` with no cookie jar (`httpCookieStorage =
+nil`, `httpCookieAcceptPolicy = .never`, `httpShouldSetCookies = false`; config
+injectable for URLProtocol stubbing). `fetch()` discovers the org uuid
+(`GET /api/organizations`, first uuid, cached/invalidated via `OrgIDStore`),
+fetches `GET /api/organizations/{uuid}/usage` with the shared Safari UA
+(`WebViewFactory.safariUserAgent`, now exposed) + bridged cookies, and returns a
+typed `UsageFetchResult` (success / needsCookieRefresh / notLoggedIn /
+decodeFailed / transport — Task 5 owns the enum). Classification runs the 403
+Cloudflare-challenge check and all auth checks (401, `/login` redirect, 200
+login-page HTML) BEFORE any JSON decode; cookies are read via `CookieSource`
+(a `Sendable` two-closure seam over `CookieBridge`) and `Set-Cookie`s written
+back on success. Off-host redirects strip the `Cookie` header via
+`OffHostRedirectGuard` (`URLSessionTaskDelegate`). Decision 6: only value-free
+events are logged (status, result case, discovery outcome) — never cookies or
+headers.
+
+**Deviations:**
+- Split the source across two files to satisfy SwiftLint `file_length` (≤300):
+  `OffHostRedirectGuard.swift` holds the redirect delegate; `UsageAPIClient.swift`
+  holds the client + `UsageFetchResult` + `CookieSource`. Task brief named only
+  `UsageAPIClient.swift`; the delegate extraction is a length-driven structural
+  split, committed alongside.
+- Tests split into three files (one serialized `UsageAPIClientTests` suite via
+  extensions: core + classification, plus `UsageAPIClientTestSupport` helpers and
+  a `StubURLProtocol` URLProtocol stub) — again to stay under `file_length`. A
+  single suite is mandatory: `StubURLProtocol`'s route table is process-global,
+  so `.serialized` across one suite is the only way to prevent cross-test route
+  stomping.
+- Two-org fixture is inline (`twoOrgJSON`) per the brief; no new JSON file added —
+  reused the committed `usage.json` / `organizations.json` test resources.
+- `CookieSource.bridged` (the Task-6 production seam) carries `// periphery:ignore`
+  (matching the codebase pattern) — unreferenced until Task 6 wires the loop.
+
+**Reviews:**
+
+*Round 1:*
+- code-reviewer: approved (1 medium lossy write-back, 2 low) → logs/working/task-5/code-reviewer-round1.json
+- security-auditor: approved (Decision 6 + SSRF/redirect verified; 3 minor) → logs/working/task-5/security-auditor-round1.json
+- test-reviewer: changes_requested (HIGH: write-back untested, reset Dates only !=nil) → logs/working/task-5/test-reviewer-round1.json
+
+*Round 2 (after fix 2d5d0f3):*
+- Lossless cookie write-back (raw Set-Cookie → CookieBridge, no reconstruction; litmus-verified end-to-end test); exact reset-Date assertions; UUID guard on discovered org id (rejects non-UUID → re-discover); factored UsageResponseClassifier.swift for file_length. 85 tests, make ci clean.
+
+**Verification:**
+- `cd App && swift test --filter UsageAPIClient` → pass; full suite → 85 tests pass
+- `make ci` (format-check, lint --strict, test, dead-code) → clean, exit 0
+- Live smoke (lead, real URLSession + logged-in WKWebsiteDataStore cookies, Safari UA): GET /api/organizations → 200 (uuid 8f859b21…); GET /organizations/{uuid}/usage → 200, limits[] = session/weekly_all/weekly_scoped with ISO-8601 resets_at — exact shape UsageAPIClient+UsageMapper consume. curl→403, URLSession→200 confirmed.

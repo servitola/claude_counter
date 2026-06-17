@@ -1,0 +1,32 @@
+{
+  "verdict": "approved",
+  "summary": {
+    "totalFindings": 3,
+    "critical": 0,
+    "major": 0,
+    "minor": 3
+  },
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "A10:2021-SSRF / A03 Injection",
+      "issue": "The org UUID from claude.ai's /organizations response is interpolated raw into the usage URL string (URL(string: \"https://claude.ai/api/organizations/\\(orgUUID)/usage\")) with no validation or percent-escaping. The value is semi-trusted (it comes from claude.ai's own authenticated response and is host-scoped by the no-cookie-jar + off-host guard), so practical exploitability is low. But a malformed/hostile uuid containing path separators, '@', or scheme-breaking characters (e.g. '../../@evil/') could in principle alter the resolved host or path. The cookie would still be stripped by OffHostRedirectGuard if the host changed, so cookie exfiltration is mitigated, but the request target is not defensively constrained.",
+      "recommendation": "Validate the uuid against a UUID/[A-Za-z0-9-] character set before use (reject otherwise -> .decodeFailed), and/or build the URL with URLComponents + percent-encoded path segment instead of string interpolation. Add a unit test feeding a hostile uuid and asserting it does not produce an off-host or path-traversed URL.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift:250-252 (usageURL)"
+    },
+    {
+      "severity": "minor",
+      "category": "A02 Cryptographic/Cookie integrity (defense in depth)",
+      "issue": "setCookieFields reconstructs each Set-Cookie as \"name=value; Domain=...; Path=...\", dropping the original Secure, HttpOnly, SameSite and Expires attributes before handing the string to CookieBridge.writeBack. CookieBridge re-parses and inserts into the claude.ai store. Cookies written back this way lose their Secure/HttpOnly flags. Not exploitable on its own (the store is local and claude.ai is HTTPS-only via ATS), but it weakens the attributes of rotating cookies (sessionKey, __cf_bm) re-inserted into the shared WKWebsiteDataStore.",
+      "recommendation": "Prefer passing the raw Set-Cookie header field(s) straight through to CookieBridge (which already parses per-field, comma-safe) rather than re-serializing a lossy name=value;Domain;Path string, so original cookie attributes survive write-back. If the folded-header workaround must stay, preserve isSecure/isHTTPOnly/expiresDate in the reconstructed cookie.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift:282-299 (setCookieFields)"
+    },
+    {
+      "severity": "minor",
+      "category": "A09 Logging / Decision 6 hardening",
+      "issue": "Decision 6 is correctly honored: every log call in UsageAPIClient and CookieBridge emits only status codes, result-case names, host, and counts -- no cookie value or request/response header is ever logged, and get() never logs headers. The only residual risk is structural: the default log closure wraps the message in privacy: .public, so any FUTURE edit that interpolates a header/cookie/body into a log(...) string would silently leak it into unified logging. This is a maintenance hazard, not a current leak.",
+      "recommendation": "Consider routing the default sink through privacy: .private (the messages are already value-free, so redaction is harmless) or add a code-comment + lint guard so a later edit can't accidentally interpolate a secret into a .public log line. Optional hardening; current code is compliant.",
+      "location": "App/Sources/ClaudeCounter/Scraper/UsageAPIClient.swift:77-78; CookieBridge.swift:29-30"
+    }
+  ]
+}
