@@ -157,7 +157,7 @@ make verify-sign   # show installed signature identity
 ## Quality gates
 
 ```bash
-make test           # swift test (100 tests / 14 suites, Swift Testing, no live network)
+make test           # swift test (146 tests / 21 suites, Swift Testing, no live network)
 make lint           # SwiftLint --strict (treats warnings as errors)
 make lint-fix       # auto-fix what SwiftLint can
 make format         # SwiftFormat — rewrite sources in place
@@ -286,10 +286,47 @@ brand assets, and CAPTCHAs render normally.
 - **New menu item:** edit `StatusBarController+Menu.swift` only.
   Keep `@objc` methods on the controller, not in extensions in
   separate files (Swift's selector dispatch wants them visible).
-- **New persisted setting:** `UserDefaults.standard` directly is
-  fine for this app — no settings UI exists, and there's no
-  preference panel planned. If preferences are added, route through
-  a single `UserSettings` singleton.
+- **New persisted setting:** add a key + getter/setter to
+  `Settings/SettingsStore.swift` (one `UserDefaults` key per field,
+  dotted-namespaced, graceful fallback on missing/invalid), mirror it
+  onto `AppState`, hydrate once in `ClaudeCounterApp`, and add a control
+  to `UI/SettingsView.swift` bound via the dual-write pattern (writes
+  both `AppState` for live re-render and the store for persistence).
 - **Changing the scrape interval:** `QuotaScraper.interval`. Don't
   go below 30 s — claude.ai may rate-limit and the cost/benefit
   collapses.
+
+## Menu-bar title format
+
+`StatusBar/QuotaTitleFormatter.swift` + `+Template.swift` render the
+status-bar string. Two orthogonal axes on `AppState`:
+- `displayMode` (`ProviderDisplayMode`): which providers show.
+- `titleFormat` (`Models/TitleFormat.swift`): how each chip renders +
+  colors. Presets: full/weekly/session/weeklyAlert/custom.
+`.full` uses the legacy per-provider renderer (omits empty windows —
+keep for regression). All other presets + custom go through the flat
+**token engine** (`{claude.session}`, `{codex.weekly}`, `.reset`
+variants; literal text passes through; nil → `–%`/`–m`). Coloring is a
+separate `ColorRule` (driver/target/warn/alert): weeklyAlert colors
+BOTH weekly numbers by Claude's session (70/92).
+
+## Handoff
+
+**State (2026-07-25, branch `feature/codex-usage`):** working tree clean.
+Last 3 commits this session: `614005c` build-app.sh tagless-version fix,
+`4f8ae9e` configurable menu-bar title format (presets + custom token
+template), `4d62cd7` Codex-provider base (large pre-existing WIP of this
+branch). `make ci` green (146 tests). New build installed + running.
+
+**Note:** commits `4d62cd7`/`4f8ae9e` share files (`AppState`,
+`ClaudeCounterApp`, `QuotaTitleFormatter`), so the first will not build in
+isolation — only HEAD is consistent. Expected: two intertwined features in
+one working tree, could not be cleanly hunk-split.
+
+**Next steps / open questions:**
+- Nothing pushed (waiting for explicit go). Branch is local-only work.
+- Title-format polish deferred (user may revisit): (a) hide the Separator
+  field for single-provider presets where it is inert; (b) token-palette
+  buttons append at end rather than insert at cursor (SwiftUI limitation).
+- The whole `feature/codex-usage` branch is still WIP toward a merge — no
+  user-spec/tech-spec closed out for the title-format feature.
