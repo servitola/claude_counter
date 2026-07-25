@@ -33,6 +33,8 @@ let package = Package(
             resources: [
                 .copy("Fixtures/usage.json"),
                 .copy("Fixtures/organizations.json"),
+                .copy("Fixtures/codex_usage_both_windows.json"),
+                .copy("Fixtures/codex_usage_weekly_only.json"),
             ],
             swiftSettings: strict
         ),

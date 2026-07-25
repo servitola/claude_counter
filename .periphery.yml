@@ -5,7 +5,14 @@
 retain_objc_accessible: true
 retain_objc_annotated: true
 retain_public: false
-retain_assign_only_property_types: []
+## The `StatusExport` Encodable DTOs (`Payload`/`ProviderPayload`) are consumed
+## only by the synthesized `encode(to:)`, which periphery does not trace — so
+## their fields look assign-only. Retain the value types they use.
+retain_assign_only_property_types:
+  - Int
+  - Int?
+  - Date?
+  - ProviderPayload
 retain_unused_protocol_func_params: false
 
 ## Tests reach internals via @testable import — keep them.

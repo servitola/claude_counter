@@ -8,12 +8,21 @@ import Observation
 final class StatusBarController: NSObject {
     let appState: AppState
     let scraper: QuotaScraper
+    let codexPoller: CodexPoller
+    let settingsStore: SettingsStore
     let statusItem: NSStatusItem
     var refreshTimer: Timer?
 
-    init(appState: AppState, scraper: QuotaScraper) {
+    init(
+        appState: AppState,
+        scraper: QuotaScraper,
+        codexPoller: CodexPoller,
+        settingsStore: SettingsStore
+    ) {
         self.appState = appState
         self.scraper = scraper
+        self.codexPoller = codexPoller
+        self.settingsStore = settingsStore
         self.statusItem = NSStatusBar.system.statusItem(
             withLength: NSStatusItem.variableLength
         )
@@ -23,10 +32,21 @@ final class StatusBarController: NSObject {
         startRefreshTimer()
     }
 
+    /// Render the strip for the current provider selection. Reads `usage`,
+    /// `codex`, `displayMode`, and `titleFormat` so `withObservationTracking`
+    /// re-fires on any of them.
+    func renderTitle() {
+        statusItem.button?.attributedTitle = QuotaTitleFormatter.render(
+            claude: appState.usage,
+            codex: appState.codex,
+            mode: appState.displayMode,
+            format: appState.titleFormat
+        )
+    }
+
     private func observe() {
         withObservationTracking {
-            statusItem.button?.attributedTitle =
-                QuotaTitleFormatter.render(appState.usage)
+            renderTitle()
         } onChange: { [weak self] in
             Task { @MainActor in self?.observe() }
         }
@@ -38,9 +58,7 @@ final class StatusBarController: NSObject {
             withTimeInterval: 60, repeats: true
         ) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
-                self.statusItem.button?.attributedTitle =
-                    QuotaTitleFormatter.render(self.appState.usage)
+                self?.renderTitle()
             }
         }
         // Coalesce with other system timers; a few seconds of drift is fine

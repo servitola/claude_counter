@@ -13,6 +13,8 @@ enum AppLog {
     private static let subsystem = "com.servitola.claudecounter"
 
     static let scraper = Logger(subsystem: subsystem, category: "scraper")
+    static let codex = Logger(subsystem: subsystem, category: "codex")
     static let blocker = Logger(subsystem: subsystem, category: "blocker")
     static let loginItem = Logger(subsystem: subsystem, category: "login")
+    static let cli = Logger(subsystem: subsystem, category: "cli")
 }

@@ -1,5 +1,11 @@
 .PHONY: build release install update ship reinstall uninstall purge run kill clean check setup-cert verify-sign \
-        test lint lint-fix format format-check dead-code analyze ci hooks-install
+        test lint lint-fix format format-check dead-code analyze ci hooks-install release-notarized
+
+# Developer ID identity + notarytool keychain profile used for official builds.
+# Override on the command line if either changes, e.g.
+#   make release-notarized NOTARY_PROFILE=other-profile
+DEVID          ?= Developer ID Application: Vladislav Konovalov (NZNV266K59)
+NOTARY_PROFILE ?= claude-counter-notary
 
 # ----- Build & deploy ---------------------------------------------------------
 
@@ -9,6 +15,15 @@ build:
 
 release:
 	cd App && swift build -c release
+
+# Official build: Developer ID signature + hardened runtime, notarized by
+# Apple and stapled, producing ClaudeCounter-<version>.zip for a release.
+# One-time setup of the notary profile (stores credentials in the keychain):
+#   xcrun notarytool store-credentials "$(NOTARY_PROFILE)" \
+#     --apple-id <your-apple-id> --team-id NZNV266K59 --password <app-specific-password>
+release-notarized:
+	CODESIGN_IDENTITY="$(DEVID)" NOTARY_PROFILE="$(NOTARY_PROFILE)" \
+		./scripts/build-app.sh --notarize
 
 # One-time: create a stable self-signed code-signing cert.
 # Without this, every rebuild = new identity = TCC permissions and the

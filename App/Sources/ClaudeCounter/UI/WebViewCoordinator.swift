@@ -30,7 +30,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         if let url = targetURL {
             webView.load(URLRequest(url: url))
-        } else { webView.reload() }
+        } else {
+            webView.reload()
+        }
     }
 
     func webView(

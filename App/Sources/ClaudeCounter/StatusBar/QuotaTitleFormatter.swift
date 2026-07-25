@@ -6,25 +6,73 @@ import AppKit
 ///   "  12% 2h 15m  76%"     (default color)
 ///   "  82% 45m  91%"        (82% orange — heads up)
 ///   "  93% 12m  78%"        (93% red — actually pay attention)
+///   "  0% 6d 7h"            (only a weekly window — e.g. idle Codex)
 ///   "  –% –m  –%"           (no data yet)
 enum QuotaTitleFormatter {
     /// Orange ≥ this %, red ≥ the next.
     static let warnThreshold = 80
     static let alertThreshold = 90
 
+    /// Compose the menu-bar strip for the selected provider(s). `.both` renders
+    /// the two provider strips (Claude first, Codex second — no letter labels,
+    /// the order is fixed) joined by a middle dot, e.g.
+    /// "  12% 2h  76%  ·  0% 6d".
+    static func render(
+        claude: ProviderUsage,
+        codex: ProviderUsage,
+        mode: ProviderDisplayMode,
+        now: Date = Date()
+    )
+        -> NSAttributedString
+    {
+        switch mode {
+        case .claude:
+            return render(claude, now: now)
+
+        case .codex:
+            return render(codex, now: now)
+
+        case .both:
+            let result = NSMutableAttributedString()
+            result.append(render(claude, now: now))
+            result.append(NSAttributedString(string: "  ·"))
+            result.append(render(codex, now: now))
+            return result
+        }
+    }
+
     static func render(_ usage: ClaudeUsage, now: Date = Date()) -> NSAttributedString {
         let gap = "  "
-        let session = sessionPart(usage, now: now)
-        let weekly = weeklyPart(usage, now: now)
-        let str = NSMutableAttributedString(string: gap + session)
-        if let pct = usage.currentPercent, let color = colorFor(pct) {
-            let range = NSRange(
-                location: gap.count,
-                length: "\(pct)%".count
-            )
-            str.addAttribute(.foregroundColor, value: color, range: range)
+        let hasCurrent = usage.currentPercent != nil
+        let hasWeekly = usage.weeklyPercent != nil
+
+        // Fully empty (loading / logged out): keep the explicit placeholder so
+        // the slot still reads as "no data yet" rather than going blank.
+        guard hasCurrent || hasWeekly else {
+            return NSAttributedString(string: "\(gap)–% –m\(gap)–%")
         }
-        str.append(NSAttributedString(string: gap + weekly))
+
+        // Otherwise render only the windows the provider actually has — Codex on
+        // a Plus plan reports just a weekly window when idle, so a "–% –m" 5-hour
+        // placeholder would be noise.
+        let str = NSMutableAttributedString(string: gap)
+        if hasCurrent {
+            let start = str.length
+            str.append(NSAttributedString(string: sessionPart(usage, now: now)))
+            if let pct = usage.currentPercent, let color = colorFor(pct) {
+                str.addAttribute(
+                    .foregroundColor,
+                    value: color,
+                    range: NSRange(location: start, length: "\(pct)%".count)
+                )
+            }
+        }
+        if hasWeekly {
+            if hasCurrent {
+                str.append(NSAttributedString(string: gap))
+            }
+            str.append(NSAttributedString(string: weeklyPart(usage, now: now)))
+        }
         return str
     }
 

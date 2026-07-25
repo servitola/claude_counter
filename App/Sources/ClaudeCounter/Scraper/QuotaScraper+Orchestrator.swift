@@ -25,7 +25,9 @@ extension QuotaScraper {
             await MainActor.run {
                 guard let self else { return }
                 self.isFetchingNow = false
-                if let result { self.apply(result) }
+                if let result {
+                    self.apply(result)
+                }
             }
         }
     }

@@ -99,7 +99,9 @@ extension QuotaScraperTestSupport {
             fetchUsage: { script.next() },
             runFallback: { [weak appState] in
                 counter.bump()
-                if let domSuccess { appState?.usage = domSuccess }
+                if let domSuccess {
+                    appState?.usage = domSuccess
+                }
             }
         )
     }

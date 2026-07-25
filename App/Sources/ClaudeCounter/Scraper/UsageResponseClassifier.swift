@@ -70,9 +70,15 @@ extension UsageAPIClient {
     /// `.notLoggedIn` for 401, a `/login`-path response (after a redirect), or
     /// an HTML login-page body. `nil` when none apply.
     func authResult(for data: Data, response: HTTPURLResponse) -> UsageFetchResult? {
-        if response.statusCode == 401 { return .notLoggedIn }
-        if response.url?.path.contains("/login") == true { return .notLoggedIn }
-        if isHTML(response), isLoginPage(data: data) { return .notLoggedIn }
+        if response.statusCode == 401 {
+            return .notLoggedIn
+        }
+        if response.url?.path.contains("/login") == true {
+            return .notLoggedIn
+        }
+        if isHTML(response), isLoginPage(data: data) {
+            return .notLoggedIn
+        }
         return nil
     }
 

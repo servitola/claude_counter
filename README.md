@@ -94,6 +94,47 @@ make purge        # uninstall + delete cookies and preferences too
 The longer version, plus all the architecture, conventions, and
 build pipeline notes, is in [AGENTS.md](AGENTS.md).
 
+## JSON export (for other programs)
+
+Every successful refresh writes the current usage snapshot to a JSON file
+so other tools (scripts, status bars, Raycast, etc.) can read your token
+state without scraping anything themselves:
+
+```
+~/Library/Application Support/ClaudeCounter/usage.json
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "currentPercent": 9,
+  "weeklyPercent": 26,
+  "currentResetAt": "2026-07-14T15:30:00Z",
+  "weeklyResetAt": "2026-07-20T00:00:00Z",
+  "updatedAt": "2026-07-14T13:02:00Z"
+}
+```
+
+- `schemaVersion` and `updatedAt` are **always** present. `updatedAt` is
+  the time of the snapshot — check it to detect a stale file (the app
+  refreshes about once a minute while running).
+- The four usage fields are **omitted** when unknown (e.g. before the
+  first successful fetch, or when the app is logged out). Treat a missing
+  key as "unknown".
+- Percentages are integers `0..100`; reset timestamps and `updatedAt` are
+  ISO-8601 (UTC).
+- The write is atomic, so a reader never sees a half-written file.
+
+Example — poll it from the shell with [`jq`](https://jqlang.github.io/jq/):
+
+```bash
+jq -r '"5h: \(.currentPercent // "?")%  week: \(.weeklyPercent // "?")%"' \
+  ~/Library/Application\ Support/ClaudeCounter/usage.json
+```
+
+No server and no open port — it's just a local file, consistent with the
+app's no-telemetry design.
+
 ## Privacy
 
 - All requests go straight from your machine to `claude.ai` — nowhere else.

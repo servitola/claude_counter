@@ -22,6 +22,28 @@ struct QuotaTitleFormatterTests {
         #expect(title.string == "  12% 2h 15m  76%")
     }
 
+    @Test func weeklyOnlyOmitsFiveHourPlaceholder() {
+        // Idle Codex: the API reports only a weekly window. The 5-hour slot
+        // must be dropped entirely, not shown as "–% –m".
+        let usage = ClaudeUsage(
+            weeklyPercent: 0,
+            weeklyResetAt: now.addingTimeInterval(60 * (60 * 24 * 6 + 60 * 7)),
+            updatedAt: now
+        )
+        let title = QuotaTitleFormatter.render(usage, now: now)
+        #expect(title.string == "  0% 6d 7h")
+    }
+
+    @Test func currentOnlyOmitsWeeklyPlaceholder() {
+        let usage = ClaudeUsage(
+            currentPercent: 11,
+            currentResetAt: now.addingTimeInterval(60 * 141),
+            updatedAt: now
+        )
+        let title = QuotaTitleFormatter.render(usage, now: now)
+        #expect(title.string == "  11% 2h 21m")
+    }
+
     @Test func weeklyResetTimeAppendsAfterPercent() {
         let usage = ClaudeUsage(
             currentPercent: 6,
@@ -101,5 +123,42 @@ struct QuotaTitleFormatterTests {
 
     @Test func formatRemainingNilReturnsDash() {
         #expect(QuotaTitleFormatter.formatRemaining(nil, now: now) == "–m")
+    }
+
+    // MARK: - Multi-provider composer
+
+    private var claude: ProviderUsage {
+        ProviderUsage(
+            currentPercent: 12, weeklyPercent: 76,
+            currentResetAt: now.addingTimeInterval(60 * 135), updatedAt: now
+        )
+    }
+
+    private var codex: ProviderUsage {
+        ProviderUsage(
+            currentPercent: 4, weeklyPercent: 30,
+            weeklyResetAt: now.addingTimeInterval(60 * 60 * 24 * 3), updatedAt: now
+        )
+    }
+
+    @Test func claudeModeRendersClaudeOnly() {
+        let title = QuotaTitleFormatter.render(
+            claude: claude, codex: codex, mode: .claude, now: now
+        )
+        #expect(title.string == "  12% 2h 15m  76%")
+    }
+
+    @Test func codexModeRendersCodexOnly() {
+        let title = QuotaTitleFormatter.render(
+            claude: claude, codex: codex, mode: .codex, now: now
+        )
+        #expect(title.string == "  4% –m  30% 3d")
+    }
+
+    @Test func bothModeJoinsStripsWithDotNoLabels() {
+        let title = QuotaTitleFormatter.render(
+            claude: claude, codex: codex, mode: .both, now: now
+        )
+        #expect(title.string == "  12% 2h 15m  76%  ·  4% –m  30% 3d")
     }
 }

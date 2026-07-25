@@ -20,7 +20,9 @@ extension QuotaScraper: WKNavigationDelegate {
             tearDown()
             return
         }
-        if url.contains("about:blank") { return }
+        if url.contains("about:blank") {
+            return
+        }
         // SPA needs time to render the React tree. Start polling
         // 1s after didFinish; the extract handler retries every
         // `pollInterval` until found=true or `maxExtractAttempts`.

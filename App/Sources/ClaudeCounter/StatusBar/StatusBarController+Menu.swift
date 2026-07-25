@@ -7,6 +7,8 @@ extension StatusBarController {
         let menu = NSMenu()
         menu.delegate = self
         menu.addItem(item("Open Usage Page", #selector(openWindow), key: "o"))
+        menu.addItem(item("Usage (Claude + Codex)", #selector(openOverview), key: "u"))
+        menu.addItem(item("Settings…", #selector(openSettings), key: ","))
         menu.addItem(.separator())
         menu.addItem(item(
             "Launch at Login",
@@ -41,9 +43,21 @@ extension StatusBarController {
         scraper.forceRefresh()
     }
 
+    @objc func openOverview() {
+        UsageOverviewWindow.shared.show(appState: appState)
+        // Re-probe both providers so the window opens on fresh numbers.
+        scraper.forceRefresh()
+        codexPoller.forceRefresh()
+    }
+
+    @objc func openSettings() {
+        SettingsWindow.shared.show(appState: appState, store: settingsStore)
+    }
+
     @objc func refresh() {
         // Explicit re-probe — clears the Decision-7 backoff before scraping.
         scraper.forceRefresh()
+        codexPoller.forceRefresh()
     }
 
     @objc func quit() {

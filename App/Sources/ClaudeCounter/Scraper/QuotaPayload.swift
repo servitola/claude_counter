@@ -41,15 +41,23 @@ struct QuotaPayload: Equatable {
         let textPcts = (dict["percentages"] as? [Double]) ?? []
         let barPcts = (dict["barPercents"] as? [Double]) ?? []
         func intField(_ key: String) -> Int? {
-            if let asDouble = dict[key] as? Double { return Int(asDouble) }
-            if let asInt = dict[key] as? Int { return asInt }
+            if let asDouble = dict[key] as? Double {
+                return Int(asDouble)
+            }
+            if let asInt = dict[key] as? Int {
+                return asInt
+            }
             return nil
         }
         let mins = intField("resetMinutes")
         let weeklyMins = intField("weeklyResetMinutes")
         let pattern: String? = {
-            if let str = dict["matchedPattern"] as? String { return str }
-            if let int = dict["matchedPattern"] as? Int { return String(int) }
+            if let str = dict["matchedPattern"] as? String {
+                return str
+            }
+            if let int = dict["matchedPattern"] as? Int {
+                return String(int)
+            }
             return nil
         }()
         let raw = (dict["raw"] as? String) ?? ""
