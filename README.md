@@ -30,6 +30,15 @@ fetched locally straight from Claude.ai.
 ## Install
 
 ```bash
+brew install servitola/tap/claude-counter
+```
+
+Signed release builds from [GitHub Releases](https://github.com/servitola/claude_counter/releases);
+`brew upgrade` picks up new versions.
+
+### From source
+
+```bash
 git clone https://github.com/servitola/claude_counter.git
 cd claude_counter
 make setup-cert     # one-time, creates a stable code-signing cert
