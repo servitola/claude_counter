@@ -11,40 +11,55 @@ struct UsageOverviewView: View {
     let appState: AppState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             ProviderCard(
                 title: "Claude",
+                symbol: "sparkle",
+                tint: .claudeBrand,
                 usage: appState.usage,
                 status: appState.usage.isLoaded ? .ok : .loading,
                 authHint: nil
             )
-            Divider()
             ProviderCard(
                 title: "Codex",
+                symbol: "terminal",
+                tint: .codexBrand,
                 usage: appState.codex,
                 status: appState.codexStatus,
                 authHint: "Log in with the Codex CLI: run `codex` and sign in."
             )
         }
-        .padding(20)
-        .frame(width: 340)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 18)
+        .padding(.top, 6)
+        .frame(width: 360)
+        .background(GlassBackdrop())
     }
 }
 
 // MARK: - ProviderCard
 
-/// One provider's card: title, then a row per window (current / weekly).
+/// One provider's glass card: branded title, then a row per window.
 private struct ProviderCard: View {
     let title: String
+    let symbol: String
+    let tint: Color
     let usage: ProviderUsage
     let status: ProviderStatus
     /// Shown under the title when `status == .needsAuth`.
     let authHint: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 30, height: 30)
+                    .glassSurface(in: Circle(), tint: tint.opacity(0.2))
+                Text(title)
+                    .font(.title3.weight(.semibold))
+            }
 
             if status == .needsAuth {
                 Text(authHint ?? "Not signed in.")
@@ -59,15 +74,20 @@ private struct ProviderCard: View {
                 WindowRow(
                     label: "5-hour",
                     percent: usage.currentPercent,
-                    resetAt: usage.currentResetAt
+                    resetAt: usage.currentResetAt,
+                    tint: tint
                 )
                 WindowRow(
                     label: "Weekly",
                     percent: usage.weeklyPercent,
-                    resetAt: usage.weeklyResetAt
+                    resetAt: usage.weeklyResetAt,
+                    tint: tint
                 )
             }
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }
 
@@ -78,34 +98,34 @@ private struct WindowRow: View {
     let label: String
     let percent: Int?
     let resetAt: Date?
+    let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(label)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text(percentText)
-                    .font(.subheadline.monospacedDigit())
+                    .font(.title3.weight(.semibold).monospacedDigit())
                     .foregroundStyle(color)
+                    .contentTransition(.numericText())
             }
-            ProgressView(value: Double(percent ?? 0), total: 100)
-                .tint(color)
+            UsageBar(fraction: Double(percent ?? 0) / 100, color: color)
             HStack {
                 Text(remainingText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(resetText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
+        .animation(.snappy, value: percent)
     }
 
     private var percentText: String {
-        percent.map { "\($0)% used" } ?? "–%"
+        percent.map { "\($0)%" } ?? "–%"
     }
 
     private var remainingText: String {
@@ -121,7 +141,36 @@ private struct WindowRow: View {
         switch percent ?? 0 {
         case QuotaTitleFormatter.alertThreshold...: .red
         case QuotaTitleFormatter.warnThreshold...: .orange
-        default: .primary
+        default: tint
         }
+    }
+}
+
+// MARK: - UsageBar
+
+/// A capsule meter with a soft glow on the filled part.
+private struct UsageBar: View {
+    let fraction: Double
+    let color: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.primary.opacity(0.08))
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [color.opacity(0.65), color],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(8, geo.size.width * min(1, max(0, fraction))))
+                    .shadow(color: color.opacity(0.45), radius: 6)
+            }
+        }
+        .frame(height: 8)
+        .accessibilityElement()
+        .accessibilityValue("\(Int(fraction * 100)) percent used")
     }
 }

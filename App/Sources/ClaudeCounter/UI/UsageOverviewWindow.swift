@@ -19,12 +19,15 @@ final class UsageOverviewWindow {
             return
         }
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 360),
-            styleMask: [.titled, .closable, .miniaturizable],
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 420),
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         win.title = "Usage — Claude + Codex"
+        win.titleVisibility = .hidden
+        win.titlebarAppearsTransparent = true
+        win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
         win.center()
         win.setFrameAutosaveName("ClaudeCounter.UsageOverviewWindow")
