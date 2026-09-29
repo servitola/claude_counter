@@ -5,35 +5,45 @@ import SwiftUI
 struct CustomFormatEditor: View {
     @Binding var format: TitleFormat
 
-    /// The full token vocabulary, grouped visually by provider. Clicking a
-    /// button appends its `{token}` to the end of the template.
-    private static let tokens: [(label: String, token: String)] = [
-        ("C %", "{claude.session}"),
-        ("C wk", "{claude.weekly}"),
-        ("C reset", "{claude.session.reset}"),
-        ("C wk reset", "{claude.weekly.reset}"),
-        ("X %", "{codex.session}"),
-        ("X wk", "{codex.weekly}"),
-        ("X reset", "{codex.session.reset}"),
-        ("X wk reset", "{codex.weekly.reset}")
+    /// Clicking a chip appends its `{token}` to the end of the template.
+    private static let chips: [(label: String, suffix: String)] = [
+        ("%", "session"),
+        ("wk", "weekly"),
+        ("reset", "session.reset"),
+        ("wk reset", "weekly.reset")
     ]
 
     var body: some View {
-        TextField("Template", text: $format.customTemplate, axis: .vertical)
-            .lineLimit(1 ... 3)
-        tokenPalette
-        colorControls
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("Template", text: $format.customTemplate, axis: .vertical)
+                .font(.system(.body, design: .monospaced))
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1 ... 3)
+            tokenRow(provider: "claude", title: "Claude", tint: .claudeBrand)
+            tokenRow(provider: "codex", title: "Codex", tint: .codexBrand)
+            Divider()
+            colorControls
+        }
+        .padding(.horizontal, 4)
     }
 
-    private var tokenPalette: some View {
-        LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible()), count: 4),
-            spacing: 6
-        ) {
-            ForEach(Self.tokens, id: \.token) { entry in
-                Button(entry.label) { format.customTemplate += entry.token }
-                    .font(.caption)
-                    .controlSize(.small)
+    private func tokenRow(provider: String, title: String, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 44, alignment: .leading)
+            GlassGroup(spacing: 4) {
+                HStack(spacing: 6) {
+                    ForEach(Self.chips, id: \.suffix) { chip in
+                        let token = "{\(provider).\(chip.suffix)}"
+                        Button(chip.label) { format.customTemplate += token }
+                            .font(.caption)
+                            .controlSize(.small)
+                            .glassButtonStyle()
+                            .help(token)
+                    }
+                }
             }
         }
     }
@@ -50,13 +60,18 @@ struct CustomFormatEditor: View {
                 Text(target.title).tag(target)
             }
         }
-        Stepper(
-            "Orange at \(format.customColorRule.warn)%",
-            value: $format.customColorRule.warn, in: 0 ... 100
-        )
-        Stepper(
-            "Red at \(format.customColorRule.alert)%",
-            value: $format.customColorRule.alert, in: 0 ... 100
-        )
+        .pickerStyle(.segmented)
+        thresholdStepper("Orange at", value: $format.customColorRule.warn, dot: .orange)
+        thresholdStepper("Red at", value: $format.customColorRule.alert, dot: .red)
+    }
+
+    private func thresholdStepper(_ title: String, value: Binding<Int>, dot: Color) -> some View {
+        Stepper(value: value, in: 0 ... 100) {
+            HStack(spacing: 6) {
+                Circle().fill(dot).frame(width: 8, height: 8)
+                Text("\(title) \(value.wrappedValue)%")
+                    .monospacedDigit()
+            }
+        }
     }
 }

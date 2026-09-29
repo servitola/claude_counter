@@ -8,58 +8,96 @@ struct SettingsView: View {
     let store: SettingsStore
 
     var body: some View {
-        Form {
-            providerSection
-            formatSection
-            previewSection
-            codexHint
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                previewCard
+                providerCard
+                formatCard
+                codexHint
+            }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 22)
+            .padding(.top, 6)
         }
-        .formStyle(.grouped)
-        .frame(minWidth: 400, minHeight: 320)
+        .scrollIndicators(.never)
+        .background(GlassBackdrop())
+        .frame(minWidth: 440, minHeight: 560)
     }
 
-    private var providerSection: some View {
-        Section("Menu bar shows") {
-            Picker("Provider", selection: displayModeBinding) {
-                ForEach(ProviderDisplayMode.allCases, id: \.self) { mode in
-                    Text(mode.title).tag(mode)
-                }
+    private var header: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "gauge.with.dots.needle.67percent")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.claudeBrand, .codexBrand],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 44, height: 44)
+                .glassSurface(in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Claude Counter")
+                    .font(.title2.weight(.semibold))
+                Text("Menu-bar title and colors")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
-            .pickerStyle(.radioGroup)
-            .labelsHidden()
         }
     }
 
-    private var formatSection: some View {
-        Section("Format") {
-            Picker("Preset", selection: presetBinding) {
-                ForEach(TitlePreset.allCases, id: \.self) { preset in
-                    Text(preset.title).tag(preset)
-                }
-            }
+    private var previewCard: some View {
+        SettingsCard(title: "Live preview", symbol: "menubar.rectangle") {
+            Text(previewTitle)
+                .font(.system(size: 13, weight: .medium).monospacedDigit())
+                .textSelection(.enabled)
+                .lineLimit(1)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .glassSurface(in: Capsule())
+        }
+    }
+
+    private var providerCard: some View {
+        SettingsCard(title: "Menu bar shows", symbol: "square.stack.3d.up") {
+            ProviderPicker(selection: displayModeBinding)
+        }
+    }
+
+    private var formatCard: some View {
+        SettingsCard(title: "Format", symbol: "textformat") {
+            PresetList(selection: presetBinding)
             if appState.titleFormat.preset != .custom {
-                TextField("Separator", text: formatBinding.separator)
+                HStack {
+                    Text("Separator")
+                    Spacer()
+                    TextField("Separator", text: formatBinding.separator)
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                }
+                .padding(.horizontal, 10)
             } else {
                 CustomFormatEditor(format: formatBinding)
             }
         }
-    }
-
-    private var previewSection: some View {
-        Section("Preview") {
-            Text(previewTitle)
-                .font(.system(size: 13))
-                .textSelection(.enabled)
-                .padding(.vertical, 2)
-        }
+        .animation(.snappy, value: appState.titleFormat.preset)
     }
 
     private var codexHint: some View {
-        Text("Codex usage is read from your local Codex CLI login "
-            + "(~/.codex/auth.json). Sign in once with `codex` in a terminal.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+        Label {
+            Text("Codex usage is read from your local Codex CLI login "
+                + "(~/.codex/auth.json). Sign in once with `codex` in a terminal.")
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "info.circle")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 6)
     }
 
     /// The rendered title for whatever numbers are on hand — the live snapshot
