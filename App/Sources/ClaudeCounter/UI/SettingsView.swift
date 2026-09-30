@@ -17,6 +17,7 @@ struct SettingsView: View {
             .padding(GlassLayout.rim)
         }
         .scrollIndicators(.never)
+        .scrollEdgeFade()
         .ignoresSafeArea(edges: .top)
         .background(GlassBackdrop())
         .frame(minWidth: 440, minHeight: 560)
