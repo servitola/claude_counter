@@ -128,18 +128,27 @@ codesign --force --deep --sign "$SIGN_ID" "${CODESIGN_EXTRA[@]}" "$APP_BUNDLE"
 # verdict, then staple the ticket onto the .app so it validates offline.
 if $NOTARIZE; then
     : "${CODESIGN_IDENTITY:?--notarize needs CODESIGN_IDENTITY (a Developer ID Application identity)}"
-    : "${NOTARY_PROFILE:?--notarize needs NOTARY_PROFILE (keychain profile from 'notarytool store-credentials')}"
+    # An App Store Connect API key works where a keychain profile can't be
+    # saved (store-credentials validates, then silently fails to persist from a
+    # non-GUI session); the profile stays as the fallback.
+    if [[ -n "${NOTARY_KEY:-}" ]]; then
+        : "${NOTARY_KEY_ID:?NOTARY_KEY needs NOTARY_KEY_ID}"
+        : "${NOTARY_ISSUER:?NOTARY_KEY needs NOTARY_ISSUER}"
+        NOTARY_AUTH=(--key "$NOTARY_KEY" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER")
+    else
+        : "${NOTARY_PROFILE:?--notarize needs NOTARY_PROFILE (keychain profile from 'notarytool store-credentials') or NOTARY_KEY}"
+        NOTARY_AUTH=(--keychain-profile "$NOTARY_PROFILE")
+    fi
     NOTARIZE_ZIP="$BUILD_DIR/ClaudeCounter-notarize.zip"
-    echo "Submitting to Apple notary service (profile: $NOTARY_PROFILE)..."
+    echo "Submitting to Apple notary service..."
     ditto -c -k --keepParent "$APP_BUNDLE" "$NOTARIZE_ZIP"
     SUBMIT_OUT=$(xcrun notarytool submit "$NOTARIZE_ZIP" \
-        --keychain-profile "$NOTARY_PROFILE" --wait 2>&1)
+        "${NOTARY_AUTH[@]}" --wait 2>&1)
     echo "$SUBMIT_OUT"
     rm -f "$NOTARIZE_ZIP"
     if ! echo "$SUBMIT_OUT" | grep -q "status: Accepted"; then
         SUB_ID=$(echo "$SUBMIT_OUT" | awk '/  id:/{print $2; exit}')
-        [[ -n "$SUB_ID" ]] && xcrun notarytool log "$SUB_ID" \
-            --keychain-profile "$NOTARY_PROFILE" || true
+        [[ -n "$SUB_ID" ]] && xcrun notarytool log "$SUB_ID" "${NOTARY_AUTH[@]}" || true
         echo "ERROR: notarization was not Accepted." >&2
         exit 1
     fi

@@ -6,6 +6,9 @@
 #   make release-notarized NOTARY_PROFILE=other-profile
 DEVID          ?= Developer ID Application: Vladislav Konovalov (NZNV266K59)
 NOTARY_PROFILE ?= claude-counter-notary
+NOTARY_KEY_ID  ?= $(APPLE_SERVITOLA_APPSTORE_KEY_ID)
+NOTARY_ISSUER  ?= $(APPLE_SERVITOLA_APPSTORE_KEY_ISSUER_ID)
+NOTARY_KEY     ?= $(if $(NOTARY_KEY_ID),$(wildcard $(HOME)/.appstoreconnect/private_keys/AuthKey_$(NOTARY_KEY_ID).p8))
 
 # ----- Build & deploy ---------------------------------------------------------
 
@@ -23,6 +26,7 @@ release:
 #     --apple-id <your-apple-id> --team-id NZNV266K59 --password <app-specific-password>
 release-notarized:
 	CODESIGN_IDENTITY="$(DEVID)" NOTARY_PROFILE="$(NOTARY_PROFILE)" \
+		NOTARY_KEY="$(NOTARY_KEY)" NOTARY_KEY_ID="$(NOTARY_KEY_ID)" NOTARY_ISSUER="$(NOTARY_ISSUER)" \
 		./scripts/build-app.sh --notarize
 
 # One-time: create a stable self-signed code-signing cert.
