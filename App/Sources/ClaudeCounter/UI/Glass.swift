@@ -34,6 +34,17 @@ extension View {
     }
 }
 
+// MARK: - GlassLayout
+
+/// Frosted cards fill the window; only a thin rim of the clear pane shows the
+/// desktop, so the see-through look stays decorative instead of legible text.
+enum GlassLayout {
+    static let rim: CGFloat = 8
+    static let cardRadius: CGFloat = 16
+    /// Room for the traffic lights, which sit on the top card.
+    static let titlebarClearance: CGFloat = 22
+}
+
 // MARK: - GlassGroup
 
 /// Lets sibling glass shapes blend and morph into each other on macOS 26+.

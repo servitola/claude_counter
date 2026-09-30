@@ -11,9 +11,10 @@ struct UsageOverviewView: View {
     let appState: AppState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: GlassLayout.rim) {
             ProviderCard(
                 title: "Claude",
+                topInset: GlassLayout.titlebarClearance,
                 symbol: "sparkle",
                 tint: .claudeBrand,
                 usage: appState.usage,
@@ -29,10 +30,9 @@ struct UsageOverviewView: View {
                 authHint: "Log in with the Codex CLI: run `codex` and sign in."
             )
         }
-        .padding(.horizontal, 18)
-        .padding(.bottom, 18)
-        .padding(.top, 6)
-        .frame(width: 360)
+        .padding(GlassLayout.rim)
+        .frame(width: 340)
+        .ignoresSafeArea(edges: .top)
         .background(GlassBackdrop())
     }
 }
@@ -42,6 +42,7 @@ struct UsageOverviewView: View {
 /// One provider's glass card: branded title, then a row per window.
 private struct ProviderCard: View {
     let title: String
+    var topInset: CGFloat = 0
     let symbol: String
     let tint: Color
     let usage: ProviderUsage
@@ -86,8 +87,11 @@ private struct ProviderCard: View {
             }
         }
         .padding(16)
+        .padding(.top, topInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .glassSurface(
+            in: RoundedRectangle(cornerRadius: GlassLayout.cardRadius, style: .continuous)
+        )
     }
 }
 

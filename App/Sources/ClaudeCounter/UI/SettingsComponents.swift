@@ -6,6 +6,7 @@ import SwiftUI
 struct SettingsCard<Content: View>: View {
     let title: String
     let symbol: String
+    var topInset: CGFloat = 0
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -16,8 +17,11 @@ struct SettingsCard<Content: View>: View {
             content
         }
         .padding(16)
+        .padding(.top, topInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassSurface(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .glassSurface(
+            in: RoundedRectangle(cornerRadius: GlassLayout.cardRadius, style: .continuous)
+        )
     }
 }
 

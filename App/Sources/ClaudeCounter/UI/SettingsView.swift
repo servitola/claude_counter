@@ -9,18 +9,15 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-                previewCard
+            VStack(alignment: .leading, spacing: GlassLayout.rim) {
+                heroCard
                 providerCard
                 formatCard
-                codexHint
             }
-            .padding(.horizontal, 22)
-            .padding(.bottom, 22)
-            .padding(.top, 6)
+            .padding(GlassLayout.rim)
         }
         .scrollIndicators(.never)
+        .ignoresSafeArea(edges: .top)
         .background(GlassBackdrop())
         .frame(minWidth: 440, minHeight: 560)
     }
@@ -48,8 +45,14 @@ struct SettingsView: View {
         }
     }
 
-    private var previewCard: some View {
-        SettingsCard(title: "Live preview", symbol: "menubar.rectangle") {
+    private var heroCard: some View {
+        SettingsCard(
+            title: "Live preview",
+            symbol: "menubar.rectangle",
+            topInset: GlassLayout.titlebarClearance
+        ) {
+            header
+                .padding(.bottom, 4)
             Text(previewTitle)
                 .font(.system(size: 13, weight: .medium).monospacedDigit())
                 .textSelection(.enabled)
@@ -64,6 +67,7 @@ struct SettingsView: View {
     private var providerCard: some View {
         SettingsCard(title: "Menu bar shows", symbol: "square.stack.3d.up") {
             ProviderPicker(selection: displayModeBinding)
+            codexHint
         }
     }
 
@@ -97,7 +101,6 @@ struct SettingsView: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 6)
     }
 
     /// The rendered title for whatever numbers are on hand — the live snapshot
