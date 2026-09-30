@@ -42,7 +42,7 @@ enum GlassLayout {
     static let rim: CGFloat = 8
     static let cardRadius: CGFloat = 16
     /// Room for the traffic lights, which sit on the top card.
-    static let titlebarClearance: CGFloat = 22
+    static let titlebarClearance: CGFloat = 34
 }
 
 // MARK: - GlassGroup

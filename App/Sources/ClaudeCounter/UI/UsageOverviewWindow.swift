@@ -25,13 +25,10 @@ final class UsageOverviewWindow {
             defer: false
         )
         win.title = "Usage — Claude + Codex"
-        win.applyGlassChrome()
         win.isReleasedWhenClosed = false
         win.center()
         win.setFrameAutosaveName("ClaudeCounter.UsageOverviewWindow")
-        win.contentViewController = NSHostingController(
-            rootView: UsageOverviewView(appState: appState)
-        )
+        win.applyGlassChrome(content: UsageOverviewView(appState: appState))
         window = win
         NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)

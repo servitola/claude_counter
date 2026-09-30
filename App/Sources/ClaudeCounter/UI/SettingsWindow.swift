@@ -24,13 +24,10 @@ final class SettingsWindow {
             defer: false
         )
         win.title = "Settings"
-        win.applyGlassChrome()
         win.isReleasedWhenClosed = false
         win.center()
         win.setFrameAutosaveName("ClaudeCounter.SettingsWindow")
-        win.contentViewController = NSHostingController(
-            rootView: SettingsView(appState: appState, store: store)
-        )
+        win.applyGlassChrome(content: SettingsView(appState: appState, store: store))
         window = win
         NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)

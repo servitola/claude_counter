@@ -2,14 +2,24 @@ import AppKit
 import SwiftUI
 
 extension NSWindow {
-    /// Clear, borderless-looking chrome so `WindowGlass` can show the desktop
-    /// behind the window instead of an opaque window background.
-    func applyGlassChrome() {
+    /// Clear chrome so `WindowGlass` can show the desktop behind the window
+    /// instead of an opaque window background.
+    func applyGlassChrome(content: some View) {
         isOpaque = false
         backgroundColor = .clear
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
         isMovableByWindowBackground = true
+        // An empty unified toolbar only makes the titlebar taller, which drops
+        // the traffic lights from the top card's edge into its interior.
+        toolbar = NSToolbar()
+        toolbarStyle = .unified
+        titlebarSeparatorStyle = .none
+        let hosting = NSHostingController(rootView: content)
+        // The top card runs under the titlebar; left on, the titlebar inset is
+        // still counted in the window height and leaves an empty strip below.
+        hosting.safeAreaRegions = []
+        contentViewController = hosting
     }
 }
 
