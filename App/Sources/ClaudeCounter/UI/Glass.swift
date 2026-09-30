@@ -52,8 +52,8 @@ struct GlassGroup<Content: View>: View {
 
 // MARK: - GlassBackdrop
 
-/// Glass is only as good as what it refracts — a flat gray window makes it
-/// look flat gray, so the settings window sits on a soft brand-colored mesh.
+/// The desktop shows through a blurred glass pane; a faint brand-colored mesh
+/// on top keeps the window from reading as flat gray over a dull wallpaper.
 struct GlassBackdrop: View {
     @Environment(\.colorScheme) private var scheme
 
@@ -88,12 +88,16 @@ struct GlassBackdrop: View {
     ]
 
     var body: some View {
-        MeshGradient(
-            width: 3,
-            height: 3,
-            points: Self.points,
-            colors: scheme == .dark ? Self.dark : Self.light
-        )
+        ZStack {
+            WindowGlass()
+            MeshGradient(
+                width: 3,
+                height: 3,
+                points: Self.points,
+                colors: scheme == .dark ? Self.dark : Self.light
+            )
+            .opacity(0.18)
+        }
         .ignoresSafeArea()
     }
 }

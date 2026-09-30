@@ -25,9 +25,7 @@ final class UsageOverviewWindow {
             defer: false
         )
         win.title = "Usage — Claude + Codex"
-        win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = true
-        win.isMovableByWindowBackground = true
+        win.applyGlassChrome()
         win.isReleasedWhenClosed = false
         win.center()
         win.setFrameAutosaveName("ClaudeCounter.UsageOverviewWindow")

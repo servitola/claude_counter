@@ -24,9 +24,7 @@ final class SettingsWindow {
             defer: false
         )
         win.title = "Settings"
-        win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = true
-        win.isMovableByWindowBackground = true
+        win.applyGlassChrome()
         win.isReleasedWhenClosed = false
         win.center()
         win.setFrameAutosaveName("ClaudeCounter.SettingsWindow")
