@@ -3,3 +3,13 @@
 Package.resolved
 *.xcodeproj
 .DS_Store
+
+# Local drop folder for screenshots sent from chat; never part of the repo.
+inbox/
+# Process artifacts of spec-driven work; kept locally, not part of the product.
+logs/
+work/
+
+# Release artifacts from make release-notarized.
+ClaudeCounter-*.zip
+ClaudeCounter-*.zip.sha256

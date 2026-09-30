@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -14,26 +17,16 @@ concurrency:
 jobs:
   check:
     name: build · test · lint · format · dead-code
-    runs-on: macos-15
+    # Liquid Glass APIs need the macOS 26 SDK and Package.swift needs Swift 6.2;
+    # the macos-15 image tops out at Swift 6.0.
+    runs-on: macos-26
     timeout-minutes: 25
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.app/Contents/Developer
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Show Swift version
         run: swift --version
-
-      - name: Cache SwiftPM build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            App/.build
-            ~/Library/Caches/org.swift.swiftpm
-          key: spm-${{ runner.os }}-${{ hashFiles('App/Package.swift', 'App/Package.resolved') }}
-          restore-keys: |
-            spm-${{ runner.os }}-
 
       - name: Install toolchain
         run: |
