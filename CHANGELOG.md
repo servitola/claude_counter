@@ -5,6 +5,8 @@ version, so keep that heading as it is.
 
 ## Unreleased
 
+## 1.2.0 — 2026-10-01
+
 ### Added
 - A desktop widget, small and medium: Claude and Codex, the 5-hour and weekly windows, the time to
   reset ticking every minute. It fades and shows a clock when the app has not updated it for ten
