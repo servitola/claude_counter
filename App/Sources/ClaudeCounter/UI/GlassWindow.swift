@@ -4,7 +4,9 @@ import SwiftUI
 extension NSWindow {
     /// Clear chrome so `WindowGlass` can show the desktop behind the window
     /// instead of an opaque window background.
-    func applyGlassChrome(content: some View) {
+    /// `sizesToContent: false` for scrolling content: its ideal size is the
+    /// whole scroll height, which would grow the window past the screen.
+    func applyGlassChrome(content: some View, sizesToContent: Bool = true) {
         isOpaque = false
         backgroundColor = .clear
         titleVisibility = .hidden
@@ -19,6 +21,9 @@ extension NSWindow {
         // The top card runs under the titlebar; left on, the titlebar inset is
         // still counted in the window height and leaves an empty strip below.
         hosting.safeAreaRegions = []
+        if !sizesToContent {
+            hosting.sizingOptions = .minSize
+        }
         contentViewController = hosting
     }
 }

@@ -26,8 +26,12 @@ final class SettingsWindow {
         win.title = "Settings"
         win.isReleasedWhenClosed = false
         win.center()
-        win.setFrameAutosaveName("ClaudeCounter.SettingsWindow")
-        win.applyGlassChrome(content: SettingsView(appState: appState, store: store))
+        // v2: 1.1.0 saved screen-tall frames while the window sized to its content.
+        win.setFrameAutosaveName("ClaudeCounter.SettingsWindow.v2")
+        win.applyGlassChrome(
+            content: SettingsView(appState: appState, store: store),
+            sizesToContent: false
+        )
         window = win
         NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)
