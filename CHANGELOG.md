@@ -5,6 +5,16 @@ version, so keep that heading as it is.
 
 ## Unreleased
 
+### Fixed
+- The Usage and Settings windows reopen exactly where they were left; the Usage window used to
+  creep 33 pt up on every launch.
+- The Codex account ID is no longer sent along if chatgpt.com ever redirects to another host.
+
+### Changed
+- Settings hides what would do nothing: the Claude / Codex / Both choice is disabled under the
+  Custom preset (the template names its providers), and Separator shows only for both providers.
+- Keyboard focus on the preset rows follows their rounded shape, like the provider pills.
+
 ## 1.2.0 — 2026-10-01
 
 ### Added

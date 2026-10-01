@@ -70,6 +70,8 @@ claude_counter/
     │   ├── UI/
     │   │   ├── Glass.swift                  # glassSurface/GlassGroup/backdrop/scroll fade (macOS 15 fallback)
     │   │   ├── GlassWindow.swift            # see-through window chrome + full-window clear glass
+    │   │   ├── GlassWindowSlot.swift        # builds/reshows a glass window, restores its frame
+    │   │   ├── ScrollEdgeFade.swift         # content dissolves at scroll edges
     │   │   ├── SettingsView*.swift, SettingsComponents.swift, CustomFormatEditor.swift
     │   │   ├── UsageOverviewView.swift      # Usage window: Claude + Codex cards
     │   │   ├── UsageWindow.swift            # NSWindow with WebView (login)
@@ -339,6 +341,14 @@ titlebar. Learned the hard way:
 - A scrolling root must not size the window (`sizesToContent: false`): its
   ideal size is the whole scroll height. Settings' autosave key is `.v2`
   because 1.1.0 saved screen-tall frames.
+- Restore the autosaved frame after `applyGlassChrome` (`GlassWindowSlot`
+  does): restored before it, the toolbar and the hosting controller nudged
+  the window 33 pt up on every launch.
+- The system focus ring ignores rounded glass shapes: buttons use
+  `.shapedFocusRing(shape)`, never a bare `.focusEffectDisabled()`.
+- Force the light theme for one app without touching the system:
+  `defaults write com.servitola.claudecounter NSRequiresAquaSystemAppearance -bool yes`,
+  relaunch; `defaults delete` the key afterwards.
 - Screenshots of these windows show whatever is behind them: put a neutral
   backdrop (e.g. an `hs.canvas`) behind before capturing.
 

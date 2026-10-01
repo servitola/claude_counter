@@ -31,7 +31,6 @@ struct SettingsCard<Content: View>: View {
 /// Three brand-tinted glass pills; the selected one lights up in its color.
 struct ProviderPicker: View {
     @Binding var selection: ProviderDisplayMode
-    @FocusState private var focused: ProviderDisplayMode?
 
     var body: some View {
         GlassGroup {
@@ -55,15 +54,7 @@ struct ProviderPicker: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        // The system ring is a hard outline that ignores the capsule; keyboard
-        // focus is drawn as a capsule stroke instead.
-        .focusEffectDisabled()
-        .focused($focused, equals: mode)
-        .overlay(
-            Capsule()
-                .strokeBorder(Color.accentColor, lineWidth: 2)
-                .opacity(focused == mode ? 1 : 0)
-        )
+        .shapedFocusRing(Capsule())
         .glassSurface(
             in: Capsule(),
             tint: isSelected ? mode.tint.opacity(0.55) : nil,
@@ -115,7 +106,30 @@ struct PresetList: View {
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .shapedFocusRing(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+extension View {
+    /// Keyboard focus drawn as a stroke of `shape`. The system ring is a hard
+    /// outline that ignores rounded glass shapes.
+    func shapedFocusRing(_ shape: some InsettableShape) -> some View {
+        modifier(ShapedFocusRing(shape: shape))
+    }
+}
+
+// MARK: - ShapedFocusRing
+
+private struct ShapedFocusRing<S: InsettableShape>: ViewModifier {
+    let shape: S
+    @FocusState private var isFocused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .focusEffectDisabled()
+            .focused($isFocused)
+            .overlay(shape.strokeBorder(Color.accentColor, lineWidth: 2).opacity(isFocused ? 1 : 0))
     }
 }
 
