@@ -26,9 +26,11 @@ final class UsageOverviewWindow {
         )
         win.title = "Usage — Claude + Codex"
         win.isReleasedWhenClosed = false
+        win.applyGlassChrome(content: UsageOverviewView(appState: appState))
+        // After the chrome: the toolbar and the hosting controller resize the
+        // frame, which shifted a frame restored before them 33 pt up per launch.
         win.center()
         win.setFrameAutosaveName("ClaudeCounter.UsageOverviewWindow")
-        win.applyGlassChrome(content: UsageOverviewView(appState: appState))
         window = win
         NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)
