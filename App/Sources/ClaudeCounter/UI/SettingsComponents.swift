@@ -30,6 +30,7 @@ struct SettingsCard<Content: View>: View {
 /// Three brand-tinted glass pills; the selected one lights up in its color.
 struct ProviderPicker: View {
     @Binding var selection: ProviderDisplayMode
+    @FocusState private var focused: ProviderDisplayMode?
 
     var body: some View {
         GlassGroup {
@@ -53,6 +54,15 @@ struct ProviderPicker: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        // The system ring is a hard outline that ignores the capsule; keyboard
+        // focus is drawn as a capsule stroke instead.
+        .focusEffectDisabled()
+        .focused($focused, equals: mode)
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.accentColor, lineWidth: 2)
+                .opacity(focused == mode ? 1 : 0)
+        )
         .glassSurface(
             in: Capsule(),
             tint: isSelected ? mode.tint.opacity(0.55) : nil,

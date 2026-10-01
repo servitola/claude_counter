@@ -2,8 +2,6 @@
 
 [![CI](https://github.com/servitola/claude_counter/actions/workflows/ci.yml/badge.svg)](https://github.com/servitola/claude_counter/actions/workflows/ci.yml) [![release](https://img.shields.io/github/v/release/servitola/claude_counter?color=black)](https://github.com/servitola/claude_counter/releases) [![brew test-bot](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml/badge.svg)](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) [![licence](https://img.shields.io/github/license/servitola/claude_counter?color=black)](LICENSE)
 
-<p align="center"><img src="docs/images/hero.png" alt="The Usage window and the Settings window in Liquid Glass over a colourful desktop: Claude and Codex cards with glowing usage bars, and the menu-bar title preview" width="85%"></p>
-
 How much of your Claude and Codex limits is left, in the menu bar.
 
 ```

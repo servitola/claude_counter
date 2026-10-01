@@ -22,5 +22,10 @@ What is left, most pressing first. State as of 2026-10-01; delete a line when it
 ## UI
 - Never looked at: the light theme, and the macOS 15 fallback (material instead of Liquid Glass).
 - The settings window's scroll fade is untested with the glass cards under the mask.
+- With the Custom preset the template alone decides what the title shows, yet the Claude / Codex /
+  Both pills stay active: on this Mac the pills say Codex while the title shows Claude too.
+  Disable or hide the pills under Custom, or make the template follow them.
+- README has no screenshot yet. The windows are see-through, so a capture shows whatever is behind
+  them: shoot on an otherwise empty desktop (another Space) with a neutral backdrop.
 - Title format: the Separator field is shown for single-provider presets where it does nothing;
   the token buttons append at the end of the template instead of inserting at the cursor.
