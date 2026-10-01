@@ -1,6 +1,6 @@
 # Claude Counter
 
-[![CI](https://github.com/servitola/claude_counter/actions/workflows/ci.yml/badge.svg)](https://github.com/servitola/claude_counter/actions/workflows/ci.yml) [![release](https://img.shields.io/github/v/release/servitola/claude_counter?color=black)](https://github.com/servitola/claude_counter/releases) [![brew test-bot](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml/badge.svg)](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) [![licence](https://img.shields.io/github/license/servitola/claude_counter?color=black)](LICENSE)
+[![CI](https://github.com/servitola/claude_counter/actions/workflows/ci.yml/badge.svg)](https://github.com/servitola/claude_counter/actions/workflows/ci.yml) [![release](https://img.shields.io/github/v/release/servitola/claude_counter?color=black)](https://github.com/servitola/claude_counter/releases) [![brew test-bot](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml/badge.svg)](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml) ![macOS 26+](https://img.shields.io/badge/macOS-26%2B-black) [![licence](https://img.shields.io/github/license/servitola/claude_counter?color=black)](LICENSE)
 
 How much of your Claude and Codex limits is left, in the menu bar.
 
@@ -25,7 +25,7 @@ numbers went where the clock is.
 brew install --cask servitola/tap/claude-counter
 ```
 
-Apple silicon, macOS 15 or newer. The build is signed and notarized by Apple. `brew upgrade` brings
+Apple silicon, macOS 26 or newer. The build is signed and notarized by Apple. `brew upgrade` brings
 new versions.
 
 Then:

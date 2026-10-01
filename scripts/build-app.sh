@@ -78,7 +78,7 @@ cat > "$WIDGET_BUNDLE/Contents/Info.plist" << PLIST
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>LSMinimumSystemVersion</key>
-    <string>15.0</string>
+    <string>26.0</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>
@@ -121,7 +121,7 @@ cat > "$APP_DIR/Info.plist" << PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
 ${ICON_PLIST_KEY}    <key>LSMinimumSystemVersion</key>
-    <string>15.0</string>
+    <string>26.0</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>

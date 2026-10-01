@@ -5,6 +5,10 @@ version, so keep that heading as it is.
 
 ## Unreleased
 
+### Changed
+- Requires macOS 26. The macOS 15 look-alike of Liquid Glass is gone; Homebrew keeps 1.2.1 on
+  older systems.
+
 ## 1.2.1 — 2026-10-01
 
 ### Fixed

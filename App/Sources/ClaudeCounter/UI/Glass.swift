@@ -2,8 +2,7 @@ import CounterShared
 import SwiftUI
 
 extension View {
-    /// Liquid Glass on macOS 26+, a material surface on macOS 15 (the deployment floor).
-    @ViewBuilder
+    /// A Liquid Glass surface in `shape`, optionally tinted and reacting to touch.
     func glassSurface(
         in shape: some Shape,
         tint: Color? = nil,
@@ -11,22 +10,11 @@ extension View {
     )
         -> some View
     {
-        if #available(macOS 26.0, *) {
-            glassEffect(.regular.tint(tint).interactive(interactive), in: shape)
-        } else {
-            background((tint ?? .clear).opacity(0.35), in: shape)
-                .background(.regularMaterial, in: shape)
-                .overlay(shape.stroke(.white.opacity(0.18), lineWidth: 1))
-        }
+        glassEffect(.regular.tint(tint).interactive(interactive), in: shape)
     }
 
-    @ViewBuilder
     func glassButtonStyle() -> some View {
-        if #available(macOS 26.0, *) {
-            buttonStyle(.glass)
-        } else {
-            buttonStyle(.bordered)
-        }
+        buttonStyle(.glass)
     }
 }
 
@@ -43,17 +31,13 @@ enum GlassLayout {
 
 // MARK: - GlassGroup
 
-/// Lets sibling glass shapes blend and morph into each other on macOS 26+.
+/// Lets sibling glass shapes blend and morph into each other.
 struct GlassGroup<Content: View>: View {
     var spacing: CGFloat = 8
     @ViewBuilder let content: Content
 
     var body: some View {
-        if #available(macOS 26.0, *) {
-            GlassEffectContainer(spacing: spacing) { content }
-        } else {
-            content
-        }
+        GlassEffectContainer(spacing: spacing) { content }
     }
 }
 

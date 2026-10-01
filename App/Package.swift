@@ -16,7 +16,7 @@ let strict: [SwiftSetting] = [
 
 let package = Package(
     name: "ClaudeCounter",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v26)],
     products: [
         .executable(name: "ClaudeCounter", targets: ["ClaudeCounter"]),
         .executable(name: "ClaudeCounterWidget", targets: ["ClaudeCounterWidget"]),

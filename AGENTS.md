@@ -1,6 +1,6 @@
 # Claude Counter — Agent Guide
 
-A native macOS menu-bar app (Swift 6 / AppKit, macOS 15+) that polls
+A native macOS menu-bar app (Swift 6 / AppKit, macOS 26+) that polls
 Claude.ai usage once per minute and renders the result in the menu bar.
 Single-binary SPM package, no Xcode project, no external runtime
 dependencies beyond system frameworks.
@@ -68,7 +68,7 @@ claude_counter/
     │   ├── Export/                          # `--json` CLI + CFMessagePort server, StatusExport schema v2
     │   ├── Settings/SettingsStore.swift     # UserDefaults-backed settings
     │   ├── UI/
-    │   │   ├── Glass.swift                  # glassSurface/GlassGroup/backdrop/scroll fade (macOS 15 fallback)
+    │   │   ├── Glass.swift                  # glassSurface/GlassGroup/backdrop
     │   │   ├── GlassWindow.swift            # see-through window chrome + full-window clear glass
     │   │   ├── GlassWindowSlot.swift        # builds/reshows a glass window, restores its frame
     │   │   ├── ScrollEdgeFade.swift         # content dissolves at scroll edges
@@ -195,7 +195,7 @@ Compiler is also strict:
   `InferIsolatedConformances`, `NonisolatedNonsendingByDefault`
 
 `scripts/build-app.sh` writes `Info.plist` inline (LSUIElement=true,
-macOS 15 minimum). It picks the stable cert if present, falls back to
+macOS 26 minimum). It picks the stable cert if present, falls back to
 ad-hoc with a warning.
 
 ## Memory budget — the whole point

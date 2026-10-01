@@ -35,26 +35,8 @@ extension NSWindow {
 /// both rendered near-opaque there, hiding the see-through look.
 struct WindowGlass: View {
     var body: some View {
-        if #available(macOS 26.0, *) {
-            Rectangle()
-                .fill(.clear)
-                .glassEffect(.clear, in: Rectangle())
-        } else {
-            BehindWindowBlur()
-        }
+        Rectangle()
+            .fill(.clear)
+            .glassEffect(.clear, in: Rectangle())
     }
-}
-
-// MARK: - BehindWindowBlur
-
-private struct BehindWindowBlur: NSViewRepresentable {
-    func makeNSView(context _: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.blendingMode = .behindWindow
-        view.material = .hudWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_: NSVisualEffectView, context _: Context) {}
 }
