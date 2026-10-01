@@ -5,6 +5,8 @@ version, so keep that heading as it is.
 
 ## Unreleased
 
+## 1.1.1 — 2026-10-01
+
 ### Added
 - Homebrew links a `claude-counter` command: `claude-counter --json` prints the current numbers.
 
