@@ -23,8 +23,12 @@ claude_counter/
 ├── .periphery.yml              # Periphery config — dead code detection
 ├── .pre-commit-config.yaml     # pre-commit hook (gitleaks + Swift toolchain)
 ├── .github/workflows/ci.yml    # GitHub Actions: build · test · lint · format · dead-code
+├── CHANGELOG.md                # user-facing changes; release.sh bump cuts Unreleased
+├── BACKLOG.md                  # what is left, most pressing first
+├── .claude/skills/release/     # the release procedure (order, mirror wait, rollback)
 ├── scripts/
-│   ├── build-app.sh            # bundle assembly + codesign + install
+│   ├── build-app.sh            # bundle assembly + codesign (+ notarize) + install
+│   ├── release.sh              # release steps: check / bump / notes / build / cask
 │   └── setup-codesign-cert.sh  # one-time stable cert in login keychain
 └── App/
     ├── Package.swift           # swift-tools 6.2, strict concurrency, warnings-as-errors
@@ -56,11 +60,18 @@ claude_counter/
     │   │   ├── StatusBarController.swift
     │   │   ├── StatusBarController+Menu.swift
     │   │   └── QuotaTitleFormatter.swift
+    │   ├── Codex/                           # Codex provider: auth.json token, /wham/usage, poller
+    │   ├── Export/                          # `--json` CLI + CFMessagePort server, StatusExport schema v2
+    │   ├── Settings/SettingsStore.swift     # UserDefaults-backed settings
     │   ├── UI/
+    │   │   ├── Glass.swift                  # glassSurface/GlassGroup/backdrop/scroll fade (macOS 15 fallback)
+    │   │   ├── GlassWindow.swift            # see-through window chrome + full-window clear glass
+    │   │   ├── SettingsView*.swift, SettingsComponents.swift, CustomFormatEditor.swift
+    │   │   ├── UsageOverviewView.swift      # Usage window: Claude + Codex cards
     │   │   ├── UsageWindow.swift            # NSWindow with WebView (login)
     │   │   └── WebViewCoordinator.swift     # OAuth popup handling
     │   └── LoginItem/LoginItemManager.swift # SMAppService wrapper
-    └── Tests/ClaudeCounterTests/            # Swift Testing; 100 tests / 14 suites
+    └── Tests/ClaudeCounterTests/            # Swift Testing; 146 tests / 21 suites
         ├── UsageAPIModelsTests, UsageMapperTests, OrgIDStoreTests, CookieBridgeTests
         ├── UsageAPIClientTests (+Classification, +TestSupport, StubURLProtocol)
         ├── QuotaScraperOrchestrationTests, QuotaScraperBackoffTests (+TestSupport)
@@ -167,7 +178,8 @@ make ci             # everything above, in failure-fast order
 make hooks-install  # install pre-commit hook (lint + format + build + test + gitleaks)
 ```
 
-CI in `.github/workflows/ci.yml` runs the same `make ci` on `macos-15`.
+CI in `.github/workflows/ci.yml` runs the same `make ci` on `macos-26`
+(the Liquid Glass APIs need the macOS 26 SDK; `macos-15` has only Swift 6.0).
 
 Compiler is also strict:
 - `swift-tools 6.2`
@@ -310,23 +322,34 @@ variants; literal text passes through; nil → `–%`/`–m`). Coloring is a
 separate `ColorRule` (driver/target/warn/alert): weeklyAlert colors
 BOTH weekly numbers by Claude's session (70/92).
 
+## Liquid Glass windows
+
+Settings and Usage windows are non-opaque (`NSWindow.applyGlassChrome`): a
+full-window SwiftUI `glassEffect(.clear)` shows the desktop through, frosted
+`glassSurface` cards fill it to an 8 pt rim, and the top card runs under the
+titlebar. Learned the hard way:
+- `NSVisualEffectView(.behindWindow)` and `NSGlassEffectView` as the window
+  background render near-opaque; only SwiftUI glass samples the desktop.
+- An empty unified `NSToolbar` is what drops the traffic lights inside the
+  top card; `safeAreaRegions = []` stops an empty strip under the content.
+- A scrolling root must not size the window (`sizesToContent: false`): its
+  ideal size is the whole scroll height. Settings' autosave key is `.v2`
+  because 1.1.0 saved screen-tall frames.
+- Screenshots of these windows show whatever is behind them: put a neutral
+  backdrop (e.g. an `hs.canvas`) behind before capturing.
+
+## Release
+
+`.claude/skills/release/SKILL.md` is the procedure. In short: `origin` is the
+private Gitea and the only push target; GitHub is fed by its push mirror. The
+zip is built and notarized locally (`make release-notarized`, App Store
+Connect API key from the environment — a keychain profile cannot be saved from
+a non-GUI session). Create the GitHub release only after the mirror delivered
+the tag, or `gh` makes the tag on the old commit and the mirror is rejected.
+
 ## Handoff
 
-**State (2026-07-25, branch `feature/codex-usage`):** working tree clean.
-Last 3 commits this session: `614005c` build-app.sh tagless-version fix,
-`4f8ae9e` configurable menu-bar title format (presets + custom token
-template), `4d62cd7` Codex-provider base (large pre-existing WIP of this
-branch). `make ci` green (146 tests). New build installed + running.
-
-**Note:** commits `4d62cd7`/`4f8ae9e` share files (`AppState`,
-`ClaudeCounterApp`, `QuotaTitleFormatter`), so the first will not build in
-isolation — only HEAD is consistent. Expected: two intertwined features in
-one working tree, could not be cleanly hunk-split.
-
-**Next steps / open questions:**
-- Nothing pushed (waiting for explicit go). Branch is local-only work.
-- Title-format polish deferred (user may revisit): (a) hide the Separator
-  field for single-provider presets where it is inert; (b) token-palette
-  buttons append at end rather than insert at cursor (SwiftUI limitation).
-- The whole `feature/codex-usage` branch is still WIP toward a merge — no
-  user-spec/tech-spec closed out for the title-format feature.
+**State (2026-10-01, `main`):** 1.1.0 released and in Homebrew (notarized).
+Since then, local only: AGPL licence, CI on macos-26, README/CHANGELOG/BACKLOG,
+release tooling, the settings-window size fix and scroll fade. Next: 1.1.1
+with the size fix. Open work is in BACKLOG.md.

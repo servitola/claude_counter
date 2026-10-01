@@ -1,154 +1,134 @@
 # Claude Counter
 
-A tiny macOS menu-bar app that shows your **Claude.ai usage** live in the
-top bar — current 5-hour window %, time until reset, and weekly %.
+[![CI](https://github.com/servitola/claude_counter/actions/workflows/ci.yml/badge.svg)](https://github.com/servitola/claude_counter/actions/workflows/ci.yml) [![release](https://img.shields.io/github/v/release/servitola/claude_counter?color=black)](https://github.com/servitola/claude_counter/releases) [![brew test-bot](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml/badge.svg)](https://github.com/servitola/homebrew-tap/actions/workflows/tests.yml) ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black) [![licence](https://img.shields.io/github/license/servitola/claude_counter?color=black)](LICENSE)
+
+<p align="center"><img src="docs/images/hero.png" alt="The Usage window and the Settings window in Liquid Glass over a colourful desktop: Claude and Codex cards with glowing usage bars, and the menu-bar title preview" width="85%"></p>
+
+How much of your Claude and Codex limits is left, in the menu bar.
 
 ```
-                                                  9% 2h 28m   26%   🔋  📶  🔍
-                                                  ^^^^^^^^^^^^^^
-                                              this is the app
+                                  9% 2h 28m  26%  ·  7% 51%   🔋  📶  21:53
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+                                  Claude: 5-hour %, time to reset, weekly %  ·  Codex
 ```
 
-Click the indicator → menu with **Open Usage Page**, **Launch at Login**,
-**Refresh Now**, **Quit**. The Usage Page is a real Claude.ai window
-embedded in the app, so you log in once and it stays logged in across
-reboots.
+Refreshed every minute, straight from claude.ai and chatgpt.com, with the logins you already have.
+About 14 MB of memory at rest. No telemetry.
 
-Idle footprint is **~14 MB** (Activity Monitor "Memory" column — see
-[AGENTS.md](AGENTS.md) for how). No telemetry, no analytics, all data
-fetched locally straight from Claude.ai.
+## Why
 
----
-
-## Requirements
-
-- macOS 15 (Sequoia) or newer
-- A Claude.ai subscription (free or paid)
-- Xcode command-line tools (`xcode-select --install`)
-- `openssl` (comes from Homebrew or Xcode)
+Claude counts your usage in a 5-hour window and a weekly one, and both live three clicks deep in
+Settings → Usage. Codex keeps its own. I kept running into the wall in the middle of work, so the
+numbers went where the clock is.
 
 ## Install
 
-```bash
-brew install servitola/tap/claude-counter
+```sh
+brew install --cask servitola/tap/claude-counter
 ```
 
-Signed release builds from [GitHub Releases](https://github.com/servitola/claude_counter/releases);
-`brew upgrade` picks up new versions.
+Apple silicon, macOS 15 or newer. The build is signed and notarized by Apple. `brew upgrade` brings
+new versions.
 
-### From source
+Then:
 
-```bash
-git clone https://github.com/servitola/claude_counter.git
-cd claude_counter
-make setup-cert     # one-time, creates a stable code-signing cert
-make install        # builds, signs, copies to /Applications, launches
-```
+1. Click the numbers in the menu bar → **Open Usage Page** and log in to claude.ai once (Google
+   sign-in works). Close the window; the session stays across restarts.
+2. For Codex, log in once with the Codex CLI: run `codex` in a terminal. The app reads that login
+   from `~/.codex/auth.json`.
+3. **Launch at Login** in the same menu, if you want it there after a reboot.
 
-You'll be prompted for your login keychain password once during
-`setup-cert` — that's so the cert can be used silently afterwards.
+## What is in the menu
 
-## First-time setup
+| | |
+| --- | --- |
+| **Open Usage Page** | claude.ai's own usage page, in a window that keeps you logged in |
+| **Usage (Claude + Codex)** | both providers: 5-hour and weekly bars, what is left, when it resets |
+| **Settings…** | which providers the title shows and how it is written |
+| **Launch at Login**, **Refresh Now**, **Quit** | |
 
-1. Click the menu-bar item → **Open Usage Page**
-2. Log in to Claude.ai (Google OAuth pop-up is supported)
-3. Close the window — the app keeps running in the menu bar
-4. Within a minute the bar shows live percentages
-5. Click the menu-bar item → **Launch at Login** if you want it to
-   auto-start
+## The title
 
-## Updating
+Settings chooses Claude, Codex or both, and one of the presets:
 
-```bash
-git pull
-make update
-```
+| Preset | Shows |
+| --- | --- |
+| Full | session %, time to reset, weekly % |
+| Weekly only | weekly % |
+| Session only | session % and its reset |
+| Weekly + session alert | weekly %, coloured by how close Claude's session is to the limit |
+| Custom | your own template |
 
-`make update` rebuilds, replaces the bundle, kills the running
-instance, and relaunches it. Because the code-signing cert is stable,
-macOS does **not** reset Login Item registration or any granted
-permissions.
+A custom template mixes text with tokens: `{claude.session}`, `{claude.weekly}`,
+`{claude.session.reset}`, `{claude.weekly.reset}` and the same four for `codex`. You pick what
+gets coloured, by which percentage, and where orange and red begin.
 
-## Uninstall
+## For scripts
 
-```bash
-make uninstall    # remove app, keep cookies + preferences
-make purge        # uninstall + delete cookies and preferences too
-```
+`claude-counter --json` asks the running app for the numbers it holds and prints them. Homebrew
+links the command; from a source build it is `/Applications/ClaudeCounter.app/Contents/MacOS/ClaudeCounter`.
 
-## Troubleshooting
-
-- **Bar shows `–%`** — you're not logged in yet, or login expired.
-  Open the Usage Page from the menu and log in again.
-- **Bar shows nothing at all** — `pgrep -lf ClaudeCounter` to check
-  if it's running. `make update` to reinstall.
-- **Want to see what the fallback scraped?** —
-  `cat ~/Library/Logs/ClaudeCounter/scrape-debug.txt` shows the last DOM
-  extraction (only written when the WebView fallback runs).
-
-## How it works (the short version)
-
-1. Every 60 seconds the app makes a direct HTTPS request (via
-   `URLSession`) to Claude.ai's usage API, reusing your logged-in
-   cookies. No browser is launched.
-2. The JSON response (current 5h window, weekly %, reset timestamps)
-   lands in `AppState`; the menu-bar title re-renders.
-3. Cookies live in a shared `WKWebsiteDataStore` (written by the login
-   window), so the session persists across app restarts.
-4. **Fallback:** if the request hits a Cloudflare challenge (expired
-   clearance) or an unexpected response, a hidden WebView spins up once
-   to refresh the session / DOM-scrape, then the API path resumes. When
-   logged out, the app waits quietly instead of retrying every minute.
-
-The longer version, plus all the architecture, conventions, and
-build pipeline notes, is in [AGENTS.md](AGENTS.md).
-
-## JSON export (for other programs)
-
-Every successful refresh writes the current usage snapshot to a JSON file
-so other tools (scripts, status bars, Raycast, etc.) can read your token
-state without scraping anything themselves:
-
-```
-~/Library/Application Support/ClaudeCounter/usage.json
+```sh
+claude-counter --json
 ```
 
 ```json
 {
-  "schemaVersion": 1,
-  "currentPercent": 9,
-  "weeklyPercent": 26,
-  "currentResetAt": "2026-07-14T15:30:00Z",
-  "weeklyResetAt": "2026-07-20T00:00:00Z",
-  "updatedAt": "2026-07-14T13:02:00Z"
+  "schemaVersion" : 2,
+  "currentPercent" : 9,
+  "currentResetAt" : "2026-09-30T23:40:00Z",
+  "weeklyPercent" : 26,
+  "weeklyResetAt" : "2026-10-03T19:00:00Z",
+  "updatedAt" : "2026-09-30T18:51:30Z",
+  "codex" : {
+    "currentPercent" : 7,
+    "weeklyPercent" : 51,
+    ...
+  }
 }
 ```
 
-- `schemaVersion` and `updatedAt` are **always** present. `updatedAt` is
-  the time of the snapshot — check it to detect a stale file (the app
-  refreshes about once a minute while running).
-- The four usage fields are **omitted** when unknown (e.g. before the
-  first successful fetch, or when the app is logged out). Treat a missing
-  key as "unknown".
-- Percentages are integers `0..100`; reset timestamps and `updatedAt` are
-  ISO-8601 (UTC).
-- The write is atomic, so a reader never sees a half-written file.
-
-Example — poll it from the shell with [`jq`](https://jqlang.github.io/jq/):
-
-```bash
-jq -r '"5h: \(.currentPercent // "?")%  week: \(.weeklyPercent // "?")%"' \
-  ~/Library/Application\ Support/ClaudeCounter/usage.json
-```
-
-No server and no open port — it's just a local file, consistent with the
-app's no-telemetry design.
+The top-level fields are Claude, `codex` holds the same for Codex. A field that is not known yet
+is absent; `schemaVersion` and `updatedAt` are always there. Exit `0` means the JSON on stdout is
+valid; any other exit prints a one-line JSON error to stderr and nothing to stdout, `6` meaning the
+app is not running. It talks to the app over a local Mach port: no network, no file, no open port.
 
 ## Privacy
 
-- All requests go straight from your machine to `claude.ai` — nowhere else.
-- Session cookies stay in `~/Library/WebKit/com.servitola.claudecounter/`
-  and are sent only to `claude.ai` (stripped on any off-host redirect);
-  they are never logged.
-- No telemetry, no analytics, no outbound traffic except to `claude.ai`.
-- Source is 100% open in this repository.
+- The app's own requests go to `claude.ai` for Claude and `chatgpt.com` for Codex. The claude.ai
+  page in the Usage Page window, and the hidden one that passes a Cloudflare challenge, load what
+  that page loads, minus a block list of analytics and trackers.
+- The claude.ai session cookies stay in the app's own WebKit store, are sent only to `claude.ai`
+  (dropped on any redirect elsewhere) and are never logged. The Codex token is read from the Codex
+  CLI's file, sent as a bearer token to `chatgpt.com` and never logged.
+- No telemetry, no analytics, no accounts.
+
+## How it works
+
+Every minute the app calls claude.ai's usage API with your session, and the Codex usage endpoint
+with your CLI token. When Cloudflare wants a fresh challenge, a hidden web view opens once to pass
+it, then the plain API calls resume; logged out, the app waits instead of retrying every minute.
+The details, the architecture and the conventions are in [AGENTS.md](AGENTS.md).
+
+## Uninstall
+
+```sh
+brew uninstall --cask claude-counter          # the app
+brew uninstall --cask --zap claude-counter    # and its login, cookies and preferences
+```
+
+## Building from source
+
+Xcode 26 (Swift 6.2, the macOS 26 SDK):
+
+```sh
+git clone https://github.com/servitola/claude_counter.git
+cd claude_counter
+make setup-cert   # once: a stable signing certificate, so macOS keeps the Login Item across rebuilds
+make install      # build, sign, copy to /Applications, relaunch
+make ci           # format, lint, build, tests, dead code
+```
+
+## Licence
+
+[AGPL-3.0](LICENSE) © [servitola](https://github.com/servitola). For a commercial licence, open an issue.
