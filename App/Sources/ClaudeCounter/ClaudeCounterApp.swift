@@ -28,13 +28,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let scraper = QuotaScraper()
     private let codexPoller = CodexPoller()
     private let settingsStore = SettingsStore()
-    // Held strongly for the app's lifetime; the NSStatusItem inside
-    // disappears from the menu bar the moment its owner is released.
-    // periphery:ignore
+    /// Held strongly for the app's lifetime; the NSStatusItem inside
+    /// disappears from the menu bar the moment its owner is released.
     private var statusBar: StatusBarController?
     /// Hosts the `--json` IPC responder for the app's lifetime; releasing it
     /// unregisters the Mach port.
     private var statusServer: StatusServer?
+    private var widgetBridge: WidgetBridge?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Compile content blocker before any WebView is built. Async,
@@ -60,8 +60,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Mach port. Pull-only, no port, no disk.
         statusServer = StatusServer(appState: appState)
         statusServer?.start()
+        widgetBridge = WidgetBridge(appState: appState)
+        widgetBridge?.start()
         scraper.start(appState: appState)
         codexPoller.start(appState: appState)
+    }
+
+    /// Clicking the widget (or opening the app again from Finder) reopens the
+    /// running app; show the numbers instead of doing nothing.
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
+        statusBar?.openOverview()
+        return false
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(

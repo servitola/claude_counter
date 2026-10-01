@@ -17,4 +17,5 @@ enum AppLog {
     static let blocker = Logger(subsystem: subsystem, category: "blocker")
     static let loginItem = Logger(subsystem: subsystem, category: "login")
     static let cli = Logger(subsystem: subsystem, category: "cli")
+    static let widget = Logger(subsystem: subsystem, category: "widget")
 }

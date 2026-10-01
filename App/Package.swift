@@ -19,16 +19,33 @@ let package = Package(
     platforms: [.macOS(.v15)],
     products: [
         .executable(name: "ClaudeCounter", targets: ["ClaudeCounter"]),
+        .executable(name: "ClaudeCounterWidget", targets: ["ClaudeCounterWidget"]),
     ],
     targets: [
+        .target(
+            name: "CounterShared",
+            path: "Sources/CounterShared",
+            swiftSettings: strict
+        ),
         .executableTarget(
             name: "ClaudeCounter",
+            dependencies: ["CounterShared"],
             path: "Sources/ClaudeCounter",
             swiftSettings: strict
         ),
+        // Packaged by scripts/build-app.sh as PlugIns/ClaudeCounterWidget.appex;
+        // SwiftPM has no app-extension product. An extension starts in
+        // ExtensionKit's _NSExtensionMain, not a plain main.
+        .executableTarget(
+            name: "ClaudeCounterWidget",
+            dependencies: ["CounterShared"],
+            path: "Sources/ClaudeCounterWidget",
+            swiftSettings: strict,
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-e", "-Xlinker", "_NSExtensionMain"])]
+        ),
         .testTarget(
             name: "ClaudeCounterTests",
-            dependencies: ["ClaudeCounter"],
+            dependencies: ["ClaudeCounter", "CounterShared"],
             path: "Tests/ClaudeCounterTests",
             resources: [
                 .copy("Fixtures/usage.json"),

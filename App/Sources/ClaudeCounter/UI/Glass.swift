@@ -1,9 +1,5 @@
+import CounterShared
 import SwiftUI
-
-extension Color {
-    static let claudeBrand = Color(red: 0.85, green: 0.47, blue: 0.34)
-    static let codexBrand = Color(red: 0.06, green: 0.64, blue: 0.50)
-}
 
 extension View {
     /// Liquid Glass on macOS 26+, a material surface on macOS 15 (the deployment floor).

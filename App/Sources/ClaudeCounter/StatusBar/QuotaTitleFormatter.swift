@@ -1,4 +1,5 @@
 import AppKit
+import CounterShared
 
 /// Renders ClaudeUsage as a colored attributed string for the menu bar.
 /// Layout examples (gap = two spaces both at the start and between
@@ -10,8 +11,8 @@ import AppKit
 ///   "  –% –m  –%"           (no data yet)
 enum QuotaTitleFormatter {
     /// Orange ≥ this %, red ≥ the next.
-    static let warnThreshold = 80
-    static let alertThreshold = 90
+    static let warnThreshold = UsageStyle.warnThreshold
+    static let alertThreshold = UsageStyle.alertThreshold
 
     /// Compose the menu-bar strip for the selected provider(s). `.both` renders
     /// the two provider strips (Claude first, Codex second — no letter labels,
@@ -95,24 +96,7 @@ enum QuotaTitleFormatter {
         return "\(pct) \(formatRemaining(resetAt, now: now))"
     }
 
-    /// "4d 2h" / "1h 23m" / "45m" / "0m" / "–m" depending on the date.
-    /// Weekly limits reset days out, so durations ≥ 1 day collapse to
-    /// "Nd Hh" rather than an unwieldy hour count ("98h").
     static func formatRemaining(_ resetAt: Date?, now: Date = Date()) -> String {
-        guard let resetAt else { return "–m" }
-        let secs = resetAt.timeIntervalSince(now)
-        let mins = max(0, Int(secs / 60))
-        let dayMins = 24 * 60
-        if mins >= dayMins {
-            let days = mins / dayMins
-            let h = (mins % dayMins) / 60
-            return h > 0 ? "\(days)d \(h)h" : "\(days)d"
-        }
-        if mins >= 60 {
-            let h = mins / 60
-            let m = mins % 60
-            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
-        }
-        return "\(mins)m"
+        UsageStyle.remaining(until: resetAt, now: now)
     }
 }

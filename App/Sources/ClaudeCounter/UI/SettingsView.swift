@@ -1,3 +1,4 @@
+import CounterShared
 import SwiftUI
 
 /// Settings form: pick which provider(s) the menu-bar strip shows and how the

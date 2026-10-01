@@ -1,3 +1,4 @@
+import CounterShared
 import SwiftUI
 
 // MARK: - SettingsCard

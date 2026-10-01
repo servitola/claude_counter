@@ -54,6 +54,40 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_DIR/MacOS" "$APP_DIR/Resources"
 cp "$BUILD_DIR/release/ClaudeCounter" "$APP_DIR/MacOS/ClaudeCounter"
 
+WIDGET_BUNDLE="$APP_DIR/PlugIns/ClaudeCounterWidget.appex"
+mkdir -p "$WIDGET_BUNDLE/Contents/MacOS"
+cp "$BUILD_DIR/release/ClaudeCounterWidget" "$WIDGET_BUNDLE/Contents/MacOS/ClaudeCounterWidget"
+cat > "$WIDGET_BUNDLE/Contents/Info.plist" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>ClaudeCounterWidget</string>
+    <key>CFBundleDisplayName</key>
+    <string>Claude Counter</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.servitola.claudecounter.widget</string>
+    <key>CFBundleVersion</key>
+    <string>${BUILD_NUMBER}</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${APP_VERSION}</string>
+    <key>CFBundleExecutable</key>
+    <string>ClaudeCounterWidget</string>
+    <key>CFBundlePackageType</key>
+    <string>XPC!</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>15.0</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.widgetkit-extension</string>
+    </dict>
+</dict>
+</plist>
+PLIST
+
 # Bundle icon. Sources lives at App/Resources/AppIcon.icns.
 ICON_SRC="$PROJECT_DIR/Resources/AppIcon.icns"
 if [[ -f "$ICON_SRC" ]]; then
@@ -100,16 +134,27 @@ PLIST
 #   * CODESIGN_IDENTITY set (release path) -> sign with that Developer ID and
 #     turn on the hardened runtime + a secure timestamp, both of which Apple
 #     requires before it will notarize the build.
-#   * otherwise (daily local dev) -> stable self-signed cert if present, else
-#     ad-hoc. The stable cert keeps TCC permissions + Login Item registration
-#     alive across rebuilds. Resolve by SHA-1 (not name) to avoid "ambiguous"
-#     errors when setup-cert ran more than once and left duplicate certs.
-CODESIGN_EXTRA=()
+#   * otherwise (daily local dev) -> the team's Developer ID when this Mac has
+#     it: the widget reads the app's snapshot from a team-prefixed App Group,
+#     which macOS opens only to apps signed by that team. Same team as the
+#     Homebrew build, so TCC and the Login Item carry over between the two.
+#   * else the stable self-signed cert (widget gets no data), else ad-hoc.
+#     Resolve by SHA-1 (not name) to avoid "ambiguous" errors when setup-cert
+#     ran more than once and left duplicate certs.
+TEAM_ID="NZNV266K59"
+CODESIGN_EXTRA=(--options runtime --timestamp=none)
+DEVID_SHA=$(security find-identity -v -p codesigning 2>/dev/null \
+    | grep "Developer ID Application: .*($TEAM_ID)" | head -1 | awk '{print $2}')
 if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
     SIGN_ID="$CODESIGN_IDENTITY"
     CODESIGN_EXTRA=(--options runtime --timestamp)
     echo "Signing for distribution (hardened runtime): $SIGN_ID"
+elif [[ -n "$DEVID_SHA" ]]; then
+    SIGN_ID="$DEVID_SHA"
+    echo "Signing with Developer ID ($TEAM_ID): $DEVID_SHA"
 else
+    CODESIGN_EXTRA=()
+    echo "WARN: no Developer ID for team $TEAM_ID — the widget will show no data."
     CERT_SHA=$(security find-identity -p basic 2>/dev/null \
         | grep "\"$CERT_NAME\"" | head -1 | awk '{print $2}')
     if [[ -n "$CERT_SHA" ]]; then
@@ -122,7 +167,13 @@ else
         echo "      (TCC + Login Item) across rebuilds."
     fi
 fi
-codesign --force --deep --sign "$SIGN_ID" "${CODESIGN_EXTRA[@]}" "$APP_BUNDLE"
+# Inside out, each with its own entitlements: --deep would stamp the app's
+# (unsandboxed) entitlements onto the widget, and WidgetKit refuses an
+# extension without the sandbox.
+codesign --force --sign "$SIGN_ID" "${CODESIGN_EXTRA[@]}" \
+    --entitlements "$PROJECT_DIR/Resources/ClaudeCounterWidget.entitlements" "$WIDGET_BUNDLE"
+codesign --force --sign "$SIGN_ID" "${CODESIGN_EXTRA[@]}" \
+    --entitlements "$PROJECT_DIR/Resources/ClaudeCounter.entitlements" "$APP_BUNDLE"
 
 # Notarize + staple. Submit a zip of the signed bundle to Apple, wait for the
 # verdict, then staple the ticket onto the .app so it validates offline.

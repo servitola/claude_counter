@@ -1,3 +1,4 @@
+import CounterShared
 import SwiftUI
 
 /// The advanced editor shown when the `.custom` preset is selected: a free-text
