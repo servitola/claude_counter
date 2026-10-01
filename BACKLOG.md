@@ -14,11 +14,6 @@ What is left, most pressing first. State as of 2026-10-01; delete a line when it
   again when the hosting controller sizes the window to its content; find which of these wins,
   with evidence, before changing anything.
 
-## Security
-- `CodexUsageClient` sends the Codex bearer token with a plain `URLSession` and no redirect
-  delegate. Whether Foundation drops `Authorization` on a redirect to another host is not
-  verified; the Claude path has `OffHostRedirectGuard` for its cookies, Codex has nothing alike.
-
 ## UI
 - Never looked at: the light theme, and the macOS 15 fallback (material instead of Liquid Glass).
 - The settings window's scroll fade is untested with the glass cards under the mask.

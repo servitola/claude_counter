@@ -31,6 +31,8 @@ struct CodexUsageClient: Sendable {
         return url
     }()
 
+    static let accountHeader = "chatgpt-account-id"
+
     private let session: URLSession
     let auth: CodexAuthStore
     let log: @Sendable (String) -> Void
@@ -41,7 +43,14 @@ struct CodexUsageClient: Sendable {
         log: @escaping @Sendable (String)
             -> Void = { AppLog.codex.debug("\($0, privacy: .public)") }
     ) {
-        self.session = URLSession(configuration: configuration)
+        self.session = URLSession(
+            configuration: configuration,
+            delegate: OffHostRedirectGuard(
+                host: "chatgpt.com",
+                sensitiveHeaders: ["Authorization", Self.accountHeader]
+            ),
+            delegateQueue: nil
+        )
         self.auth = auth
         self.log = log
     }
@@ -106,7 +115,7 @@ struct CodexUsageClient: Sendable {
         request.httpMethod = "GET"
         request.setValue("Bearer \(creds.accessToken)", forHTTPHeaderField: "Authorization")
         if let accountId = creds.accountId, !accountId.isEmpty {
-            request.setValue(accountId, forHTTPHeaderField: "chatgpt-account-id")
+            request.setValue(accountId, forHTTPHeaderField: Self.accountHeader)
         }
         request.setValue(WebViewFactory.safariUserAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")

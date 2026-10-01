@@ -1,33 +1,43 @@
 import Foundation
 
-/// `URLSessionTaskDelegate` that strips the `Cookie` header on any redirect that
-/// leaves claude.ai (Decision 2). On-host redirects are followed unchanged. The
-/// delegate holds no per-request state, so it is safe to share across the
-/// session's tasks.
+/// `URLSessionTaskDelegate` that strips credential headers on any redirect
+/// that leaves `host` (or its subdomains). On-host redirects are followed
+/// unchanged. Foundation already drops `Authorization` across hosts but
+/// forwards `Cookie` and custom headers such as `chatgpt-account-id`
+/// (verified with a local two-host redirect). Holds no per-request state, so
+/// it is safe to share across the session's tasks.
 final class OffHostRedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
+    private let host: String
+    private let sensitiveHeaders: [String]
+
+    init(host: String, sensitiveHeaders: [String]) {
+        self.host = host
+        self.sensitiveHeaders = sensitiveHeaders
+    }
+
     func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        willPerformHTTPRedirection response: HTTPURLResponse,
+        _: URLSession,
+        task _: URLSessionTask,
+        willPerformHTTPRedirection _: HTTPURLResponse,
         newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
-        guard let host = request.url?.host else {
-            completionHandler(request)
-            return
-        }
-        if Self.isClaudeHost(host) {
-            completionHandler(request)
-            return
-        }
-        // Off-host: strip the Cookie header so credentials never leave claude.ai.
-        var stripped = request
-        stripped.setValue(nil, forHTTPHeaderField: "Cookie")
-        completionHandler(stripped)
+        completionHandler(guarded(request))
     }
 
-    private static func isClaudeHost(_ host: String) -> Bool {
-        host.caseInsensitiveCompare(UsageAPIClient.host) == .orderedSame
-            || host.lowercased().hasSuffix(".\(UsageAPIClient.host)")
+    func guarded(_ request: URLRequest) -> URLRequest {
+        if let target = request.url?.host, isOwnHost(target) {
+            return request
+        }
+        var stripped = request
+        for header in sensitiveHeaders {
+            stripped.setValue(nil, forHTTPHeaderField: header)
+        }
+        return stripped
+    }
+
+    private func isOwnHost(_ candidate: String) -> Bool {
+        candidate.caseInsensitiveCompare(host) == .orderedSame
+            || candidate.lowercased().hasSuffix(".\(host.lowercased())")
     }
 }

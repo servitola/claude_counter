@@ -82,7 +82,7 @@ struct UsageAPIClient {
         // guard does not need a separate stored reference.
         self.session = URLSession(
             configuration: configuration,
-            delegate: OffHostRedirectGuard(),
+            delegate: OffHostRedirectGuard(host: Self.host, sensitiveHeaders: ["Cookie"]),
             delegateQueue: nil
         )
         self.orgStore = orgStore
