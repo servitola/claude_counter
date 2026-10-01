@@ -15,6 +15,7 @@ version, so keep that heading as it is.
 ### Changed
 - Settings content fades into the window edge when scrolled instead of being cut off under the
   window buttons.
+- Keyboard focus on the Claude / Codex / Both pills is a capsule outline instead of the system ring.
 
 ## 1.1.0 — 2026-09-30
 
