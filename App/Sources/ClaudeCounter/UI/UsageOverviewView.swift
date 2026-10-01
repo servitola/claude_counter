@@ -139,15 +139,11 @@ private struct WindowRow: View {
 
     private var resetText: String {
         guard let resetAt else { return "" }
-        return "resets in \(QuotaTitleFormatter.formatRemaining(resetAt))"
+        return "resets in \(UsageStyle.remaining(until: resetAt))"
     }
 
     private var color: Color {
-        switch percent ?? 0 {
-        case QuotaTitleFormatter.alertThreshold...: .red
-        case QuotaTitleFormatter.warnThreshold...: .orange
-        default: tint
-        }
+        UsageStyle.color(for: percent, normal: tint)
     }
 }
 
