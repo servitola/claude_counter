@@ -32,6 +32,9 @@ claude_counter/
 │   └── setup-codesign-cert.sh  # one-time stable cert in login keychain
 └── App/
     ├── Package.swift           # swift-tools 6.2, strict concurrency, warnings-as-errors
+    ├── Sources/CounterShared/  # used by app + widget: UsageSnapshot (reads StatusExport v2), SharedContainer, UsageStyle
+    ├── Sources/ClaudeCounterWidget/  # WidgetKit extension (small + medium), packaged as PlugIns/*.appex
+    ├── Resources/*.entitlements      # app: App Group; widget: sandbox + App Group
     ├── Sources/ClaudeCounter/
     │   ├── ClaudeCounterApp.swift     # @main, AppDelegate, accessory mode
     │   ├── AppState.swift             # @Observable, holds ClaudeUsage
@@ -60,6 +63,7 @@ claude_counter/
     │   │   ├── StatusBarController.swift
     │   │   ├── StatusBarController+Menu.swift
     │   │   └── QuotaTitleFormatter.swift
+    │   ├── Widget/WidgetBridge.swift        # writes the snapshot to the App Group, reloads the widget on change
     │   ├── Codex/                           # Codex provider: auth.json token, /wham/usage, poller
     │   ├── Export/                          # `--json` CLI + CFMessagePort server, StatusExport schema v2
     │   ├── Settings/SettingsStore.swift     # UserDefaults-backed settings
@@ -337,6 +341,25 @@ titlebar. Learned the hard way:
   because 1.1.0 saved screen-tall frames.
 - Screenshots of these windows show whatever is behind them: put a neutral
   backdrop (e.g. an `hs.canvas`) behind before capturing.
+
+## Widget
+
+`ClaudeCounterWidget` is an ordinary SwiftPM executable linked with
+`-e _NSExtensionMain`; `build-app.sh` wraps it into
+`Contents/PlugIns/ClaudeCounterWidget.appex` (`CFBundlePackageType XPC!`,
+`NSExtensionPointIdentifier com.apple.widgetkit-extension`). No Xcode project.
+- Data path: `WidgetBridge` writes `StatusExport` bytes to
+  `SharedContainer.snapshotURL` (App Group `NZNV266K59.com.servitola.claudecounter`)
+  and calls `reloadTimelines` only when `Digest` (percents + minute-rounded
+  resets) changes — WidgetKit budgets reloads for a background app. The
+  widget's timeline holds 60 one-minute entries so the countdown needs none.
+- Signing: appex and app are signed separately with their own entitlements
+  (never `--deep`: the widget must keep its sandbox). The group is
+  team-prefixed, so only a Developer ID signature of team NZNV266K59 reaches
+  it; local builds use that identity when the keychain has it.
+- Debug: `pluginkit -m -p com.apple.widgetkit-extension -v | grep claudecounter`;
+  `/usr/bin/log show --predicate 'process == "ClaudeCounterWidget"'` (the
+  user's shell has a `log` function, call the binary by path).
 
 ## Release
 

@@ -61,6 +61,13 @@ A custom template mixes text with tokens: `{claude.session}`, `{claude.weekly}`,
 `{claude.session.reset}`, `{claude.weekly.reset}` and the same four for `codex`. You pick what
 gets coloured, by which percentage, and where orange and red begin.
 
+## Widget
+
+Right-click the desktop → **Edit Widgets…** → **Claude Counter**. Small shows each provider's
+session percentage, its reset and the weekly percentage; medium shows both windows with bars. The
+countdown ticks every minute; the numbers follow the app. If the app has not updated them for ten
+minutes the widget fades and shows a clock. Clicking it opens the Usage window.
+
 ## For scripts
 
 `claude-counter --json` asks the running app for the numbers it holds and prints them. Homebrew
@@ -89,7 +96,7 @@ claude-counter --json
 The top-level fields are Claude, `codex` holds the same for Codex. A field that is not known yet
 is absent; `schemaVersion` and `updatedAt` are always there. Exit `0` means the JSON on stdout is
 valid; any other exit prints a one-line JSON error to stderr and nothing to stdout, `6` meaning the
-app is not running. It talks to the app over a local Mach port: no network, no file, no open port.
+app is not running. It talks to the app over a local Mach port: no network, no open port.
 
 ## Privacy
 
@@ -99,6 +106,9 @@ app is not running. It talks to the app over a local Mach port: no network, no f
 - The claude.ai session cookies stay in the app's own WebKit store, are sent only to `claude.ai`
   (dropped on any redirect elsewhere) and are never logged. The Codex token is read from the Codex
   CLI's file, sent as a bearer token to `chatgpt.com` and never logged.
+- For the widget, the app keeps the same JSON as `--json` in its App Group container
+  (`~/Library/Group Containers/NZNV266K59.com.servitola.claudecounter/usage.json`): numbers and
+  reset times, no session or token.
 - No telemetry, no analytics, no accounts.
 
 ## How it works
