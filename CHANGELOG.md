@@ -5,6 +5,8 @@ version, so keep that heading as it is.
 
 ## Unreleased
 
+## 1.2.1 — 2026-10-01
+
 ### Fixed
 - The Usage and Settings windows reopen exactly where they were left; the Usage window used to
   creep 33 pt up on every launch.
