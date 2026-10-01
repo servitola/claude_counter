@@ -68,7 +68,20 @@ struct SettingsView: View {
 
     private var providerCard: some View {
         SettingsCard(title: "Menu bar shows", symbol: "square.stack.3d.up") {
+            // A custom template names its providers in its own tokens, so the
+            // pills would change nothing.
+            let isCustom = appState.titleFormat.preset == .custom
             ProviderPicker(selection: displayModeBinding)
+                .disabled(isCustom)
+                .opacity(isCustom ? 0.4 : 1)
+            if isCustom {
+                Label(
+                    "The custom template picks providers with its tokens.",
+                    systemImage: "curlybraces"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
             codexHint
         }
     }
@@ -76,7 +89,9 @@ struct SettingsView: View {
     private var formatCard: some View {
         SettingsCard(title: "Format", symbol: "textformat") {
             PresetList(selection: presetBinding)
-            if appState.titleFormat.preset != .custom {
+            if appState.titleFormat.preset == .custom {
+                CustomFormatEditor(format: formatBinding)
+            } else if appState.displayMode == .both {
                 HStack {
                     Text("Separator")
                     Spacer()
@@ -86,11 +101,10 @@ struct SettingsView: View {
                         .frame(width: 90)
                 }
                 .padding(.horizontal, 10)
-            } else {
-                CustomFormatEditor(format: formatBinding)
             }
         }
         .animation(.snappy, value: appState.titleFormat.preset)
+        .animation(.snappy, value: appState.displayMode)
     }
 
     private var codexHint: some View {
