@@ -112,7 +112,12 @@ shows the owner's own edits and nothing else of ours.
 3. `/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/ClaudeCounter.app/Contents/Info.plist`
    prints `<version>`; the menu-bar title shows numbers.
 
-**Checkpoint:** installed bundle reports `<version>`, Gatekeeper accepts it as notarized.
+4. `make vm-smoke VERSION=<version>` (Bash sandbox off; `vm` from the dotfiles on PATH): the
+   published cask on a fresh macOS VM — install, version, notarization, launch, widget, `--json`,
+   `--zap`. About a minute; every line `ok`, last line `vm-smoke: passed`. A FAIL here means
+   users get a broken install: treat it as a rollback case.
+
+**Checkpoint:** installed bundle reports `<version>`, Gatekeeper accepts it as notarized, vm-smoke passed.
 
 **Something failed after Phase 3?** Follow [rollback.md](references/rollback.md).
 
@@ -122,3 +127,4 @@ shows the owner's own edits and nothing else of ours.
 - [ ] nothing was pushed to `github`; GitHub got everything through the mirror
 - [ ] release zip sha256 equals the cask's `sha256`
 - [ ] the tap commit touched `Casks/claude-counter.rb` only
+- [ ] `make vm-smoke VERSION=<version>` passed

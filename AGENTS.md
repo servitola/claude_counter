@@ -182,6 +182,7 @@ make format-check   # CI-safe: error if anything would change
 make dead-code      # Periphery scan in --strict mode
 make ci             # everything above, in failure-fast order
 make hooks-install  # install pre-commit hook (lint + format + build + test + gitleaks)
+make vm-smoke VERSION=x.y.z  # published cask on a throwaway macOS 27 VM (tart, dotfiles `vm`)
 ```
 
 CI in `.github/workflows/ci.yml` runs the same `make ci` on `macos-26`
@@ -370,6 +371,18 @@ titlebar. Learned the hard way:
 - Debug: `pluginkit -m -p com.apple.widgetkit-extension -v | grep claudecounter`;
   `/usr/bin/log show --predicate 'process == "ClaudeCounterWidget"'` (the
   user's shell has a `log` function, call the binary by path).
+
+## VM smoke test
+
+`scripts/vm-smoke.sh` runs the published cask through a fresh clone of the
+`gg27` tart base (macOS 27, Homebrew, Command Line Tools only) and deletes
+it: about a minute. Learned while building it:
+- The first launch of a quarantined app waits for macOS's "downloaded from
+  the Internet" prompt; `open` and `tart exec` then hang. The script checks
+  Gatekeeper first, then strips the quarantine; each step has its own alarm.
+- Building in that VM fails: in the macOS 27 SDK SwiftUI's `@State` is a
+  macro whose plugin ships only with full Xcode. Build tests there need a
+  base baked with Xcode.
 
 ## Release
 

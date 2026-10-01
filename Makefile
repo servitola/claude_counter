@@ -1,5 +1,5 @@
 .PHONY: build release install update ship reinstall uninstall purge run kill clean check setup-cert verify-sign \
-        test lint lint-fix format format-check dead-code analyze ci hooks-install release-notarized
+        test lint lint-fix format format-check dead-code analyze ci hooks-install release-notarized vm-smoke
 
 # Developer ID identity + notarytool keychain profile used for official builds.
 # Override on the command line if either changes, e.g.
@@ -28,6 +28,11 @@ release-notarized:
 	CODESIGN_IDENTITY="$(DEVID)" NOTARY_PROFILE="$(NOTARY_PROFILE)" \
 		NOTARY_KEY="$(NOTARY_KEY)" NOTARY_KEY_ID="$(NOTARY_KEY_ID)" NOTARY_ISSUER="$(NOTARY_ISSUER)" \
 		./scripts/build-app.sh --notarize
+
+# The published cask on a clean macOS VM: install, notarization, launch, widget,
+# --json, zap. VERSION=1.3.0 also checks the installed version.
+vm-smoke:
+	./scripts/vm-smoke.sh $(VERSION)
 
 # One-time: create a stable self-signed code-signing cert.
 # Without this, every rebuild = new identity = TCC permissions and the
