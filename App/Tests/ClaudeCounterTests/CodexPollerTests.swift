@@ -22,7 +22,7 @@ struct CodexPollerTests {
     }
 
     @Test func needsReauthClearsStaleDataAndFlagsAuth() async {
-        let poller = CodexPoller { .needsReauth }
+        let poller = CodexPoller { .needsReauth(.noToken) }
         let state = AppState()
         state.codex = ProviderUsage(currentPercent: 50, weeklyPercent: 60, updatedAt: stamp)
         poller.attach(appState: state)

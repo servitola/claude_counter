@@ -68,14 +68,7 @@ struct CodexAuthStore: Sendable {
     /// `tokens.account_id` is absent. OpenAI nests it under the auth namespace
     /// claim `https://api.openai.com/auth → chatgpt_account_id`.
     static func accountId(fromJWT token: String) -> String? {
-        let parts = token.split(separator: ".")
-        guard
-            parts.count == 3,
-            let payload = base64URLDecode(String(parts[1])),
-            let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
-        else {
-            return nil
-        }
+        let obj = claims(ofJWT: token)
         if
             let auth = obj["https://api.openai.com/auth"] as? [String: Any],
             let id = auth["chatgpt_account_id"] as? String
@@ -83,6 +76,25 @@ struct CodexAuthStore: Sendable {
             return id
         }
         return obj["chatgpt_account_id"] as? String ?? obj["account_id"] as? String
+    }
+
+    /// Whether the token's `exp` claim is in the past. A token without a
+    /// readable expiry counts as not expired.
+    static func isExpired(jwt token: String, now: Date) -> Bool {
+        guard let exp = claims(ofJWT: token)["exp"] as? Double else { return false }
+        return Date(timeIntervalSince1970: exp) <= now
+    }
+
+    private static func claims(ofJWT token: String) -> [String: Any] {
+        let parts = token.split(separator: ".")
+        guard
+            parts.count == 3,
+            let payload = base64URLDecode(String(parts[1])),
+            let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
+        else {
+            return [:]
+        }
+        return obj
     }
 
     private static func base64URLDecode(_ value: String) -> Data? {

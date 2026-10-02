@@ -7,12 +7,24 @@ internal import os
 enum CodexFetchResult {
     /// A populated snapshot mapped from a decodable usage response.
     case success(ProviderUsage)
-    /// No local token, or the backend rejected it (401/403) — run `codex login`.
-    case needsReauth
+    /// No local token, or the backend rejected it (401/403). The reason only
+    /// feeds the log: all three look the same on screen, and telling them
+    /// apart afterwards is impossible without it.
+    case needsReauth(CodexReauthReason)
     /// A 200 with JSON that could not be mapped, or an unexpected status.
     case decodeFailed
     /// A networking/transport failure (no response).
     case transport(any Error)
+}
+
+// MARK: - CodexReauthReason
+
+enum CodexReauthReason: Equatable {
+    /// `auth.json` is missing, unreadable or carries no access token.
+    case noToken
+    /// The backend answered 401 or 403; the Bool is whether the token's own
+    /// expiry time had already passed.
+    case rejected(status: Int, tokenExpired: Bool)
 }
 
 // MARK: - CodexUsageClient
@@ -67,7 +79,7 @@ struct CodexUsageClient: Sendable {
     func fetch() async -> CodexFetchResult {
         guard let creds = auth.read() else {
             log("auth missing — needs reauth")
-            return .needsReauth
+            return .needsReauth(.noToken)
         }
 
         let data: Data
@@ -90,7 +102,10 @@ struct CodexUsageClient: Sendable {
 
         case 401, 403:
             log("usage status=\(http.statusCode) — needs reauth")
-            return .needsReauth
+            return .needsReauth(.rejected(
+                status: http.statusCode,
+                tokenExpired: CodexAuthStore.isExpired(jwt: creds.accessToken, now: Date())
+            ))
 
         default:
             log("usage status=\(http.statusCode)")

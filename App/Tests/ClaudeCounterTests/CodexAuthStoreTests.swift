@@ -72,6 +72,18 @@ struct CodexAuthStoreTests {
         #expect(auth.accountId == "jwt-acct-99")
     }
 
+    @Test func token_is_expired_once_its_exp_claim_has_passed() {
+        let jwt = "\(base64URL(#"{"alg":"none"}"#)).\(base64URL(#"{"exp":1000}"#)).sig"
+        #expect(!CodexAuthStore.isExpired(jwt: jwt, now: Date(timeIntervalSince1970: 999)))
+        #expect(CodexAuthStore.isExpired(jwt: jwt, now: Date(timeIntervalSince1970: 1000)))
+    }
+
+    @Test func token_without_a_readable_expiry_is_not_called_expired() {
+        #expect(!CodexAuthStore.isExpired(jwt: "opaque", now: Date()))
+        let noExp = "\(base64URL(#"{"alg":"none"}"#)).\(base64URL(#"{"sub":"x"}"#)).sig"
+        #expect(!CodexAuthStore.isExpired(jwt: noExp, now: Date()))
+    }
+
     private func base64URL(_ json: String) -> String {
         Data(json.utf8).base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")

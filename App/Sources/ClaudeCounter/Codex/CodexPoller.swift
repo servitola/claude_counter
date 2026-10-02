@@ -91,12 +91,13 @@ final class CodexPoller {
             appState?.codexStatus = .ok
             AppLog.codex.debug("result=success")
 
-        case .needsReauth:
+        case .needsReauth(let reason):
             // Clear stale data so the overview shows the "log in via codex CLI"
             // hint rather than a misleading old snapshot.
             appState?.codex = .empty
             appState?.codexStatus = .needsAuth
-            AppLog.codex.notice("result=needsReauth")
+            AppLog.codex
+                .notice("result=needsReauth reason=\(String(describing: reason), privacy: .public)")
 
         case .decodeFailed:
             appState?.codexStatus = .error
