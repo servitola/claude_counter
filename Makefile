@@ -115,8 +115,16 @@ format-check:
 # Static dead-code analysis. --strict turns warnings into a non-zero exit.
 # Periphery resolves the config path against `--project-root`, so we
 # pass an absolute path to keep .periphery.yml at the repo root.
+# Swift 6.4's build system keeps the index store in .build/out, where
+# periphery 3.8 does not look; older toolchains keep the default layout.
 dead-code:
-	periphery scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict
+	cd App && swift build --build-tests
+	@if [ -d App/.build/out/v5 ]; then \
+		periphery scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict \
+			--skip-build --index-store-path "$(CURDIR)/App/.build/out"; \
+	else \
+		periphery scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict; \
+	fi
 
 # Heavy analyzer rules (capture_variable, unused_declaration, etc.).
 # Requires a finished build, hence the dependency.
