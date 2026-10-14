@@ -29,6 +29,7 @@ claude_counter/
 ├── scripts/
 │   ├── build-app.sh            # bundle assembly + codesign (+ notarize) + install
 │   ├── release.sh              # release steps: check / bump / notes / build / cask
+│   ├── periphery.sh            # pinned open-source Periphery 3.8.0 (sha256-checked download)
 │   └── setup-codesign-cert.sh  # one-time stable cert in login keychain
 └── App/
     ├── Package.swift           # swift-tools 6.2, strict concurrency, warnings-as-errors
@@ -179,11 +180,18 @@ make lint           # SwiftLint --strict (treats warnings as errors)
 make lint-fix       # auto-fix what SwiftLint can
 make format         # SwiftFormat — rewrite sources in place
 make format-check   # CI-safe: error if anything would change
-make dead-code      # Periphery scan in --strict mode
+make dead-code      # Periphery scan in --strict mode (scripts/periphery.sh)
 make ci             # everything above, in failure-fast order
 make hooks-install  # install pre-commit hook (lint + format + build + test + gitleaks)
 make vm-smoke VERSION=x.y.z  # published cask on a throwaway macOS 27 VM (tart, dotfiles `vm`)
 ```
+
+Periphery went commercial and archived its repository, so Homebrew deprecated
+the formula (disabled 2027-08-12). `scripts/periphery.sh` downloads the last
+open-source release (3.8.0, MIT) from GitHub, checks its sha256 and caches it in
+`~/Library/Caches/claude_counter/`; no Homebrew install is needed, here or in CI.
+It gets no fixes: Swift 6.4 already moved the index store, which the
+`dead-code` target handles with `--index-store-path`.
 
 CI in `.github/workflows/ci.yml` runs the same `make ci` on `macos-26`
 (the Liquid Glass APIs need the macOS 26 SDK; `macos-15` has only Swift 6.0).

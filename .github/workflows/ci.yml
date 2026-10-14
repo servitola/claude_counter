@@ -30,10 +30,10 @@ jobs:
 
       - name: Install toolchain
         run: |
-          brew install swiftlint swiftformat periphery
+          brew install swiftlint swiftformat
           swiftlint --version
           swiftformat --version
-          periphery version
+          ./scripts/periphery.sh version
 
       - name: SwiftFormat (lint mode)
         run: make format-check

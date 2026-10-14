@@ -112,7 +112,8 @@ format:
 format-check:
 	swiftformat App/Sources App/Tests --config .swiftformat --lint
 
-# Static dead-code analysis. --strict turns warnings into a non-zero exit.
+# Static dead-code analysis with the pinned open-source Periphery
+# (scripts/periphery.sh). --strict turns warnings into a non-zero exit.
 # Periphery resolves the config path against `--project-root`, so we
 # pass an absolute path to keep .periphery.yml at the repo root.
 # Swift 6.4's build system keeps the index store in .build/out, where
@@ -120,10 +121,10 @@ format-check:
 dead-code:
 	cd App && swift build --build-tests
 	@if [ -d App/.build/out/v5 ]; then \
-		periphery scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict \
+		./scripts/periphery.sh scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict \
 			--skip-build --index-store-path "$(CURDIR)/App/.build/out"; \
 	else \
-		periphery scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict; \
+		./scripts/periphery.sh scan --project-root App --config "$(CURDIR)/.periphery.yml" --strict; \
 	fi
 
 # Heavy analyzer rules (capture_variable, unused_declaration, etc.).
