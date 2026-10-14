@@ -98,7 +98,9 @@ struct QuotaTitleFormatterTests {
         #expect(color == nil)
     }
 
-    @Test(arguments: [
+    /// Typed up front: Swift 6.4 gives up type-checking the same literal
+    /// inline in `@Test(arguments:)`.
+    nonisolated static let durations: [(seconds: Int, expected: String)] = [
         (60 * 0, "0m"),
         (60 * 1, "1m"),
         (60 * 59, "59m"),
@@ -109,8 +111,10 @@ struct QuotaTitleFormatterTests {
         (60 * 60 * 24, "1d"),
         (60 * (60 * 24 + 65), "1d 1h"),
         (60 * (60 * 24 * 4 + 60 * 2), "4d 2h"),
-        (60 * (60 * 24 * 6 + 60 * 23), "6d 23h"),
-    ])
+        (60 * (60 * 24 * 6 + 60 * 23), "6d 23h")
+    ]
+
+    @Test(arguments: durations)
     func formatRemainingFormatsDurations(seconds: Int, expected: String) {
         let resetAt = now.addingTimeInterval(TimeInterval(seconds))
         #expect(QuotaTitleFormatter.formatRemaining(resetAt, now: now) == expected)
