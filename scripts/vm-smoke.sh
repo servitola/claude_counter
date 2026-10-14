@@ -4,7 +4,7 @@
 #
 #   scripts/vm-smoke.sh [version]   version: fail unless the cask installs exactly this
 #
-# Needs the `vm` helper from the dotfiles (tart, TART_HOME) and a base VM,
+# Needs the `vm` helper from the dotfiles (tart on $TART_HOST) and a base VM,
 # gg27 by default (VM_BASE=...). Takes 5–7 minutes.
 set -euo pipefail
 
