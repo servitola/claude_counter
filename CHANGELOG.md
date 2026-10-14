@@ -5,6 +5,14 @@ version, so keep that heading as it is.
 
 ## Unreleased
 
+## 1.3.1 — 2026-10-14
+
+### Fixed
+- Codex no longer drops to "–% –%" and asks you to log in every ten days. Its login token expires
+  after ten days and Codex renews it only when you run it; Claude Counter now asks Codex to renew
+  it as soon as the usage request is refused, and shows the numbers again a few seconds later.
+  Codex still keeps and writes its own login; Claude Counter never writes it.
+
 ## 1.3.0 — 2026-10-01
 
 ### Changed
