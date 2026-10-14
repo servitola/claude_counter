@@ -48,12 +48,15 @@ struct CodexUsageClient: Sendable {
     private let session: URLSession
     let auth: CodexAuthStore
     let log: @Sendable (String) -> Void
+    private let renewLogin: @Sendable () async -> Bool
 
     init(
         configuration: URLSessionConfiguration = Self.productionConfiguration(),
         auth: CodexAuthStore = CodexAuthStore(),
         log: @escaping @Sendable (String)
-            -> Void = { AppLog.codex.debug("\($0, privacy: .public)") }
+            -> Void = { AppLog.codex.debug("\($0, privacy: .public)") },
+        renewLogin: @escaping @Sendable () async
+            -> Bool = { await CodexTokenRefresher.shared.refresh() }
     ) {
         self.session = URLSession(
             configuration: configuration,
@@ -65,6 +68,7 @@ struct CodexUsageClient: Sendable {
         )
         self.auth = auth
         self.log = log
+        self.renewLogin = renewLogin
     }
 
     /// Ephemeral session with no cookie jar — this call is bearer-token only.
@@ -75,8 +79,23 @@ struct CodexUsageClient: Sendable {
         return config
     }
 
-    /// Read the local token, GET `/wham/usage`, classify, and map.
+    /// Read the local token, GET `/wham/usage`, classify, and map. A 401 asks
+    /// Codex to renew its login and tries once more: Codex itself renews only
+    /// when it runs, so an expired token otherwise stays in `auth.json` until
+    /// the user next opens `codex`. A 403 is not retried; Cloudflare answers
+    /// with it too.
     func fetch() async -> CodexFetchResult {
+        let first = await fetchOnce()
+        guard case .needsReauth(.rejected(status: 401, _)) = first else { return first }
+        guard await renewLogin() else {
+            AppLog.codex.notice("codex login renewal failed")
+            return first
+        }
+        AppLog.codex.notice("codex login renewed — retrying")
+        return await fetchOnce()
+    }
+
+    private func fetchOnce() async -> CodexFetchResult {
         guard let creds = auth.read() else {
             log("auth missing — needs reauth")
             return .needsReauth(.noToken)
