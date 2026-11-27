@@ -5,6 +5,13 @@ version, so keep that heading as it is.
 
 ## Unreleased
 
+## 1.3.2 — 2026-11-27
+
+### Fixed
+- Signing in to Claude with Google works again. The Google sign-in window used to flash up and
+  vanish at once; it now stays open until Google sends you back to claude.ai, and the usage page
+  reloads signed in.
+
 ## 1.3.1 — 2026-10-14
 
 ### Fixed
