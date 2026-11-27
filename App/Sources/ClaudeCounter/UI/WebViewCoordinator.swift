@@ -10,20 +10,24 @@ import WebKit
 final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
     var targetURL: URL?
     private var authWebView: WKWebView?
+    private weak var mainWebView: WKWebView?
 
     func load(_ url: URL, in webView: WKWebView) {
         targetURL = url
+        mainWebView = webView
         webView.load(URLRequest(url: url))
     }
 
+    /// Google's own pages carry claude.ai in redirect_uri/origin query params,
+    /// so only the popup landing on the claude.ai host itself ends the flow.
     func webView(
         _ webView: WKWebView,
         didFinish navigation: WKNavigation!
     ) {
-        let url = webView.url?.absoluteString ?? ""
-        if url.contains("claude.ai"), authWebView != nil {
-            authWebView?.removeFromSuperview()
-            authWebView = nil
+        guard webView === authWebView, webView.url?.host == "claude.ai" else { return }
+        closeAuthPopup()
+        if let targetURL {
+            mainWebView?.load(URLRequest(url: targetURL))
         }
     }
 
@@ -46,6 +50,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let host = action.request.url?.host ?? ""
         if host.contains("google") || host.contains("accounts") {
             let child = WKWebView(frame: webView.bounds, configuration: config)
+            // Google rejects sign-in from a WKWebView whose UA lacks Safari's.
+            child.customUserAgent = webView.customUserAgent
             child.autoresizingMask = [.width, .height]
             child.navigationDelegate = self
             child.uiDelegate = self
@@ -61,9 +67,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     func webViewDidClose(_ webView: WKWebView) {
         if webView === authWebView {
-            authWebView?.removeFromSuperview()
-            authWebView = nil
+            closeAuthPopup()
         }
+    }
+
+    private func closeAuthPopup() {
+        authWebView?.removeFromSuperview()
+        authWebView = nil
     }
 }
 
