@@ -15,8 +15,7 @@ final class ContentBlocker {
     private(set) var ruleList: WKContentRuleList?
 
     func prewarm() {
-        guard ruleList == nil else { return }
-        guard let store = WKContentRuleListStore.default() else { return }
+        guard ruleList == nil, let store = WKContentRuleListStore.default() else { return }
         store.compileContentRuleList(
             forIdentifier: "ClaudeCounterBlocker",
             encodedContentRuleList: Self.rulesJSON

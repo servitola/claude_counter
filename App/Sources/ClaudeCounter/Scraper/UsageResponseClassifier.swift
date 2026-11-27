@@ -95,8 +95,9 @@ extension UsageAPIClient {
     }
 
     func isChallenge(data: Data, response: HTTPURLResponse) -> Bool {
-        guard isHTML(response) else { return false }
-        guard let body = String(data: data, encoding: .utf8)?.lowercased() else { return false }
+        guard
+            isHTML(response),
+            let body = String(data: data, encoding: .utf8)?.lowercased() else { return false }
         return body.contains("just a moment") || body.contains("checking your browser")
     }
 }

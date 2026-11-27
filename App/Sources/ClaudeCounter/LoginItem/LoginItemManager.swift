@@ -15,10 +15,8 @@ enum LoginItemManager {
             if service.status != .enabled {
                 try service.register()
             }
-        } else {
-            if service.status == .enabled {
-                try service.unregister()
-            }
+        } else if service.status == .enabled {
+            try service.unregister()
         }
     }
 }
